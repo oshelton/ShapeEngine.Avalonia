@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latestmajor</LangVersion>
+    <Title>Shape Engine Avalonia</Title>
+    <Description>Avalonia UI integration for Shape Engine. Hosts a real Avalonia TopLevel inside the raylib window and renders it with Skia directly onto the engine's OpenGL surface.</Description>
+    <Authors>Dave Green</Authors>
+    <Company>Dave Green Games</Company>
+    <Product>Shape Engine</Product>
+    <PackageId>DaveGreen.ShapeEngine.Avalonia</PackageId>
+    <PackageTags>GameEngine Framework 2D raylib gamedev ui avalonia skia</PackageTags>
+    <RepositoryUrl>https://github.com/DaveGreen-Games/ShapeEngine</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+  <!--
+    Hosting Avalonia inside another renderer means implementing its platform backend interfaces
+    (IPlatformRenderSurface and friends), which Avalonia 12 seals off without these opt-ins. The
+    trade-off is that the Avalonia version has to be pinned exactly, hence the fixed versions below.
+  -->
+  <PropertyGroup>
+    <AvaloniaAccessUnstablePrivateApis>true</AvaloniaAccessUnstablePrivateApis>
+    <Avalonia_I_Want_To_Use_Private_Apis_In_Nuget_Package_And_Promise_To_Pin_The_Exact_Avalonia_Version_In_Package_Dependency>true</Avalonia_I_Want_To_Use_Private_Apis_In_Nuget_Package_And_Promise_To_Pin_The_Exact_Avalonia_Version_In_Package_Dependency>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.HarfBuzz" Version="12.1.1" />
+    <PackageReference Include="DaveGreen.ShapeEngine" Version="5.3.0" />
+  </ItemGroup>
+
+</Project>
