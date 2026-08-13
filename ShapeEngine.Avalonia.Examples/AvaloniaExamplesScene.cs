@@ -53,8 +53,8 @@ public sealed class AvaloniaExamplesScene : Scene
             ExamplesLayout.Inset, 0.30f, AvaloniaHologramShader.Load, AvaloniaHologramShader.Update),
         ("CRT", "Barrel distortion, a vignette and phosphor scanlines - the corners fall outside the curved glass.",
             0.35f, 0.30f, AvaloniaCrtShader.Load, AvaloniaCrtShader.Update),
-        ("Pixelate", "Snaps the surface onto a blocky grid - a static effect, so strength is the only thing that moves.",
-            0.67f, 0.30f, AvaloniaPixelateShader.Load, AvaloniaPixelateShader.Update)
+        ("Glow", "Blooms the brighter parts of the panel outward into a soft halo, with a slow pulse.",
+            0.67f, 0.30f, AvaloniaGlowShader.Load, AvaloniaGlowShader.Update)
     ];
 
     private const float GalleryTransitionInterval = 1.6f;
