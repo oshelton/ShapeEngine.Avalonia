@@ -177,33 +177,25 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// Whether ShapeEngine's own input devices are locked while the UI has capture. Default is true.
     /// </summary>
     /// <remarks>
-    /// Turn this off to route input yourself - <see cref="WantsPointer"/> and
-    /// <see cref="WantsKeyboard"/> stay accurate either way. Locking takes effect on the next
-    /// <c>InputSystem</c> update, so each transition leaves one frame of overlap: enough to matter for
-    /// click-through, not for held input.
+    /// Turn this off to route input yourself - <see cref="WantsPointer"/> and <see cref="WantsKeyboard"/>
+    /// stay accurate either way. Locking takes effect on the next <c>InputSystem</c> update, leaving one
+    /// frame of overlap per transition.
     /// <para>
-    /// The keyboard is only ever locked for active text editing, not merely because something in the UI
-    /// is focused - a focused button does not stop the game seeing its own keys. See
-    /// <see cref="OverrideActions"/> for the one case that still needs an escape hatch: actions that must
-    /// reach the game even mid-edit.
+    /// The keyboard locks only for active text editing, and at device level
+    /// (<see cref="KeyboardDevice.Lock"/>) - that is what stops ShapeEngine's own polling from draining
+    /// raylib's character queue out from under a control mid-edit. Nothing can be exempted once engaged, so
+    /// an always-on binding like quit should poll its key directly rather than go through an
+    /// <c>InputAction</c>. Navigation keys are unaffected either way: <see cref="AvaloniaInputPump"/> reads
+    /// those straight from raylib rather than through the locked device.
+    /// </para>
+    /// <para>
+    /// Keep <see cref="WindowSettings.HighDPI"/> off until a ShapeEngine release carries the
+    /// <c>GameWindow.MoveMouse</c> fix (<see href="https://github.com/DaveGreen-Games/ShapeEngine/pull/180"/>):
+    /// before it, any keypress makes the keyboard the active device, after which the engine repositions the
+    /// mouse every frame and walks it into a corner.
     /// </para>
     /// </remarks>
     public bool CaptureGameInput { get; set; } = true;
-
-    /// <summary>
-    /// Actions that reach the game even while a control has exclusive keyboard capture -
-    /// <c>InputActionUICancel</c>-style "back out" bindings being the usual case. Empty by default.
-    /// </summary>
-    /// <remarks>
-    /// Reuse the game's own action rather than rebuilding its bindings: its normal <c>Consume</c>/
-    /// <c>Update</c>, wherever the game already calls it, sees real state and fires exactly as it would
-    /// with no surface in the way. Implemented via <see cref="InputSystem.LockWhitelist"/> against each
-    /// action's <see cref="InputAction.AccessTag"/> rather than a per-button exemption, so the trade-off
-    /// is per action rather than per key: an override action's gamepad and mouse bindings stay reachable
-    /// too (not just its keyboard one), and any other action sharing its <see cref="InputAction.AccessTag"/>
-    /// becomes reachable as a side effect - keep override actions on their own tag if that matters.
-    /// </remarks>
-    public HashSet<InputAction> OverrideActions { get; } = [];
 
     #region Game loop hooks
 
@@ -218,7 +210,11 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
 
         SyncSize();
         UpdateCapture();
-        inputPump.Pump(GetPointerPosition(), WantsPointer || hasLockedMouse, WantsKeyboard || hasLockedKeyboard);
+        inputPump.Pump(
+            GetPointerPosition(),
+            WantsPointer || hasLockedMouse,
+            WantsKeyboard || hasLockedKeyboard,
+            wantsExclusiveKeyboard || hasLockedKeyboard);
         ApplyInputLocks();
 
         // Harmless to call from every surface every frame: a no-op once nothing is dragging, or once
@@ -343,54 +339,21 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// <remarks>
     /// The keyboard locks for exclusive text editing only, not for <see cref="WantsKeyboard"/> at large -
     /// a focused button still routes Tab and Enter to Avalonia (see <see cref="UpdateCapture"/>), but it
-    /// should not stop the game seeing its own keys just because the pointer happens to be over it.
+    /// should not stop the game seeing its own keys just because the pointer happens to be over it. See
+    /// <see cref="CaptureGameInput"/>'s remarks for the trade-off that leaves on the table.
     /// </remarks>
     private void ApplyInputLocks()
     {
         var input = Game.Instance.Input;
         SetLock(input.Mouse, CaptureGameInput && WantsPointer, ref hasLockedMouse);
-        ApplyKeyboardLock(CaptureGameInput && wantsExclusiveKeyboard);
-    }
-
-    /// <summary>
-    /// Locks <see cref="InputSystem"/> system-wide during exclusive text editing, whitelisting
-    /// <see cref="OverrideActions"/>' <see cref="InputAction.AccessTag"/>s so their normal
-    /// <c>Consume</c>/<c>Update</c> - wherever the game already calls it - sees real state.
-    /// </summary>
-    /// <remarks>
-    /// Rebuilt every frame the lock is engaged rather than only on change, since a plain
-    /// <c>HashSet</c> gives no change notification and a game is free to add to
-    /// <see cref="OverrideActions"/> at any time - cheap enough for the handful of entries this is meant
-    /// for. This uses the engine-wide <see cref="InputSystem"/> lock rather than
-    /// <see cref="KeyboardDevice.Lock"/>, so it is shared with anything else that locks or unlocks the
-    /// input system - the last caller wins, same as the mouse/keyboard device lock below.
-    /// </remarks>
-    private void ApplyKeyboardLock(bool locked)
-    {
-        if (!locked)
-        {
-            if (!hasLockedKeyboard) return;
-            hasLockedKeyboard = false;
-            InputSystem.Unlock();
-            return;
-        }
-
-        hasLockedKeyboard = true;
-
-        var whitelist = BitFlag.Empty;
-        foreach (var action in OverrideActions)
-        {
-            whitelist = whitelist.Add(action.AccessTag);
-        }
-
-        InputSystem.LockWhitelist(whitelist);
+        SetLock(input.Keyboard, CaptureGameInput && wantsExclusiveKeyboard, ref hasLockedKeyboard);
     }
 
     private void ReleaseInputLocks()
     {
         var input = Game.Instance.Input;
         SetLock(input.Mouse, false, ref hasLockedMouse);
-        ApplyKeyboardLock(false);
+        SetLock(input.Keyboard, false, ref hasLockedKeyboard);
     }
 
     /// <remarks>

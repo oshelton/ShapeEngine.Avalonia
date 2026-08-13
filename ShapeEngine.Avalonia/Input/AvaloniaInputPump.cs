@@ -39,11 +39,17 @@ internal sealed class AvaloniaInputPump
     /// placement texture knows an anchored surface's coordinate space.
     /// </param>
     /// <param name="pointerEnabled">Whether pointer events should reach Avalonia at all.</param>
-    /// <param name="keyboardEnabled">
-    /// Whether key and text events should reach Avalonia. Tab and the D-pad reach it regardless, while
-    /// the pointer is over the surface - see the remark on that branch below.
+    /// <param name="keyNavigationEnabled">
+    /// Whether key-down/up events (Tab, arrows, Space/Enter, ...) should reach Avalonia - needed by any
+    /// focused control, not just one accepting text.
     /// </param>
-    public void Pump(Point pointerPosition, bool pointerEnabled, bool keyboardEnabled)
+    /// <param name="textInputEnabled">
+    /// Whether typed characters should reach Avalonia. Narrower than
+    /// <paramref name="keyNavigationEnabled"/>: draining raylib's character queue is the one thing here
+    /// that competes with ShapeEngine's own <c>KeyboardDevice</c> (see the type remarks), so it only
+    /// happens while a control is actually consuming text.
+    /// </param>
+    public void Pump(Point pointerPosition, bool pointerEnabled, bool keyNavigationEnabled, bool textInputEnabled)
     {
         var timestamp = (ulong)Environment.TickCount64;
         var modifiers = KeyMap.GetModifiers();
@@ -58,9 +64,9 @@ internal sealed class AvaloniaInputPump
             impl.OnPointerLeft(timestamp);
         }
 
-        if (keyboardEnabled)
+        if (keyNavigationEnabled)
         {
-            PumpKeyboard(timestamp, modifiers);
+            foreach (var entry in KeyMap.Keys) PumpKey(entry, timestamp, modifiers);
             PumpGamepadNavigation(timestamp, modifiers, includeActivation: true);
         }
 
@@ -73,6 +79,8 @@ internal sealed class AvaloniaInputPump
             PumpKey(KeyMap.Tab, timestamp, modifiers);
             PumpGamepadNavigation(timestamp, modifiers, includeActivation: false);
         }
+
+        if (textInputEnabled) PumpTextInput(timestamp);
     }
 
     private void PumpPointer(Point point, ulong timestamp, RawInputModifiers modifiers)
@@ -110,10 +118,8 @@ internal sealed class AvaloniaInputPump
         if (Raylib.IsMouseButtonReleased(button)) impl.OnPointerButton(upType, point, modifiers, timestamp);
     }
 
-    private void PumpKeyboard(ulong timestamp, RawInputModifiers modifiers)
+    private void PumpTextInput(ulong timestamp)
     {
-        foreach (var entry in KeyMap.Keys) PumpKey(entry, timestamp, modifiers);
-
         var unicode = Raylib.GetCharPressed();
         while (unicode > 0)
         {
