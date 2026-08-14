@@ -197,6 +197,29 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// </remarks>
     public bool CaptureGameInput { get; set; } = true;
 
+    /// <summary>How a gamepad's D-pad moves focus in this surface. Linear by default.</summary>
+    /// <remarks>
+    /// <see cref="GamepadNavigationMode.Directional"/> only does anything for content that has opted into
+    /// <c>XYFocus</c> - it sends arrow keys, which move nothing on their own.
+    /// </remarks>
+    public GamepadNavigationMode GamepadNavigation { get; set; } = GamepadNavigationMode.Linear;
+
+    /// <summary>
+    /// Routes navigation keys while anything inside is focused, rather than only while the pointer is
+    /// also over the surface. Off by default.
+    /// </summary>
+    /// <remarks>
+    /// For a menu meant to be driven entirely by keyboard or gamepad, where expecting the pointer to rest
+    /// over the surface defeats the point. Focus still has to start somewhere - nothing here can create
+    /// it, so the content should focus a control itself when it appears.
+    /// <para>
+    /// The keys are forwarded, not taken: this does not lock ShapeEngine's keyboard (see
+    /// <see cref="CaptureGameInput"/>), so a game binding the arrow keys itself will see them too while
+    /// this surface has focus.
+    /// </para>
+    /// </remarks>
+    public bool KeyboardDrivenNavigation { get; set; }
+
     #region Game loop hooks
 
     /// <inheritdoc/>
@@ -214,7 +237,8 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
             GetPointerPosition(),
             WantsPointer || hasLockedMouse,
             WantsKeyboard || hasLockedKeyboard,
-            wantsExclusiveKeyboard || hasLockedKeyboard);
+            wantsExclusiveKeyboard || hasLockedKeyboard,
+            GamepadNavigation);
         ApplyInputLocks();
 
         // Harmless to call from every surface every frame: a no-op once nothing is dragging, or once
@@ -330,10 +354,19 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
 
         // Focus alone is still a bad signal for locking the game out - see ApplyInputLocks. It is a
         // fine signal for routing, though: while the pointer is over the UI, whatever it focused - Tab
-        // included - needs the keys forwarded to move on to the next control.
+        // included - needs the keys forwarded to move on to the next control. A keyboard driven surface
+        // drops the pointer half of that, since requiring it would defeat the point.
+        //
+        // The top level of the focused element has to be checked, not just that something is focused:
+        // GetFocusedElement reports the focused element of the whole application, not of the top level it
+        // is asked of, so every surface would otherwise believe it holds focus whenever any one of them
+        // does. Two surfaces forwarding the same key then moves focus twice per press.
         var focused = TopLevel.FocusManager?.GetFocusedElement();
-        var hasFocus = focused is not null && !ReferenceEquals(focused, TopLevel);
-        WantsKeyboard = wantsExclusiveKeyboard || (WantsPointer && hasFocus);
+        var hasFocus = focused is Visual visual
+                       && !ReferenceEquals(focused, TopLevel)
+                       && ReferenceEquals(global::Avalonia.Controls.TopLevel.GetTopLevel(visual), TopLevel);
+
+        WantsKeyboard = wantsExclusiveKeyboard || (hasFocus && (WantsPointer || KeyboardDrivenNavigation));
     }
 
     /// <remarks>

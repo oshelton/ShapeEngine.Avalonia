@@ -7,6 +7,7 @@ using Avalonia.Media;
 using AvaloniaExamples.Shaders;
 using AvaloniaExamples.Views;
 using ShapeEngine.Avalonia;
+using ShapeEngine.Avalonia.Input;
 using ShapeEngine.Color;
 using ShapeEngine.Core;
 using ShapeEngine.Core.GameDef;
@@ -73,6 +74,7 @@ public sealed class AvaloniaExamplesScene : Scene
         views.Add(BuildGalleryView());
         views.Add(BuildShaderViews());
         views.Add(BuildDragDropViews());
+        views.Add(BuildDirectionalNavView());
 
         // Before the nav bar, so its buttons can check themselves against the view already showing.
         ShowView(views[0]);
@@ -329,6 +331,23 @@ public sealed class AvaloniaExamplesScene : Scene
                 sourcePanel.SetStatus(Status(sourceSurface));
                 targetPanel.SetStatus(Status(targetSurface));
             });
+    }
+
+    /// <summary>A menu driven by direction rather than tab order, with no pointer involved.</summary>
+    /// <remarks>
+    /// The only surface here that opts into either navigation setting: <c>Directional</c> turns the D-pad
+    /// into arrow keys for <c>XYFocus</c> to act on, and <c>KeyboardDrivenNavigation</c> keeps those keys
+    /// flowing with the pointer somewhere else entirely, which is the whole point of a gamepad menu.
+    /// </remarks>
+    private ExampleView BuildDirectionalNavView()
+    {
+        var panel = new AvaloniaDirectionalNavPanel();
+        var surface = CreateSurface(ExamplesLayout.CenteredColumn(0.62f), scaleContent: true);
+
+        surface.GamepadNavigation = GamepadNavigationMode.Directional;
+        surface.KeyboardDrivenNavigation = true;
+
+        return new ExampleView("Directional Nav", [(surface, panel)], _ => panel.SetStatus(Status(surface)));
     }
 
     private void UpdateCircles(float dt, SeRect bounds)

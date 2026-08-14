@@ -49,7 +49,13 @@ internal sealed class AvaloniaInputPump
     /// that competes with ShapeEngine's own <c>KeyboardDevice</c> (see the type remarks), so it only
     /// happens while a control is actually consuming text.
     /// </param>
-    public void Pump(Point pointerPosition, bool pointerEnabled, bool keyNavigationEnabled, bool textInputEnabled)
+    /// <param name="gamepadNavigation">How the D-pad is translated - see <see cref="GamepadNavigationMode"/>.</param>
+    public void Pump(
+        Point pointerPosition,
+        bool pointerEnabled,
+        bool keyNavigationEnabled,
+        bool textInputEnabled,
+        GamepadNavigationMode gamepadNavigation = GamepadNavigationMode.Linear)
     {
         var timestamp = (ulong)Environment.TickCount64;
         var modifiers = KeyMap.GetModifiers();
@@ -67,7 +73,7 @@ internal sealed class AvaloniaInputPump
         if (keyNavigationEnabled)
         {
             foreach (var entry in KeyMap.Keys) PumpKey(entry, timestamp, modifiers);
-            PumpGamepadNavigation(timestamp, modifiers, includeActivation: true);
+            PumpGamepadNavigation(timestamp, modifiers, gamepadNavigation, includeActivation: true);
         }
 
         // Tab still reaches Avalonia while the broader keyboard gate is shut, as long as the pointer is
@@ -77,7 +83,7 @@ internal sealed class AvaloniaInputPump
         else if (pointerEnabled)
         {
             PumpKey(KeyMap.Tab, timestamp, modifiers);
-            PumpGamepadNavigation(timestamp, modifiers, includeActivation: false);
+            PumpGamepadNavigation(timestamp, modifiers, gamepadNavigation, includeActivation: false);
         }
 
         if (textInputEnabled) PumpTextInput(timestamp);
@@ -155,17 +161,31 @@ internal sealed class AvaloniaInputPump
     /// equivalent of <c>IsKeyPressedRepeat</c> to drive one from, so for now each direction moves focus
     /// once per press.
     /// </remarks>
-    private void PumpGamepadNavigation(ulong timestamp, RawInputModifiers modifiers, bool includeActivation)
+    private void PumpGamepadNavigation(
+        ulong timestamp,
+        RawInputModifiers modifiers,
+        GamepadNavigationMode navigation,
+        bool includeActivation)
     {
         var gamepadIndex = Game.Instance.Input.GamepadManager.LastUsedGamepad?.Index;
         if (gamepadIndex is not { } index || !Raylib.IsGamepadAvailable(index)) return;
 
-        // Right and down both move forward, left and up both move back - simple rather than a true
-        // spatial mapping, but it matches every layout this integration's panels actually use.
-        PumpGamepadKey(index, GamepadButton.LeftFaceRight, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers, timestamp);
-        PumpGamepadKey(index, GamepadButton.LeftFaceDown, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers, timestamp);
-        PumpGamepadKey(index, GamepadButton.LeftFaceLeft, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers | RawInputModifiers.Shift, timestamp);
-        PumpGamepadKey(index, GamepadButton.LeftFaceUp, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers | RawInputModifiers.Shift, timestamp);
+        if (navigation == GamepadNavigationMode.Directional)
+        {
+            PumpGamepadKey(index, GamepadButton.LeftFaceRight, AvKey.Right, PhysicalKey.ArrowRight, modifiers, timestamp);
+            PumpGamepadKey(index, GamepadButton.LeftFaceLeft, AvKey.Left, PhysicalKey.ArrowLeft, modifiers, timestamp);
+            PumpGamepadKey(index, GamepadButton.LeftFaceDown, AvKey.Down, PhysicalKey.ArrowDown, modifiers, timestamp);
+            PumpGamepadKey(index, GamepadButton.LeftFaceUp, AvKey.Up, PhysicalKey.ArrowUp, modifiers, timestamp);
+        }
+        else
+        {
+            // Right and down both move forward, left and up both move back - the tab order is one
+            // dimensional, so both axes have to collapse onto it.
+            PumpGamepadKey(index, GamepadButton.LeftFaceRight, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers, timestamp);
+            PumpGamepadKey(index, GamepadButton.LeftFaceDown, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers, timestamp);
+            PumpGamepadKey(index, GamepadButton.LeftFaceLeft, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers | RawInputModifiers.Shift, timestamp);
+            PumpGamepadKey(index, GamepadButton.LeftFaceUp, KeyMap.Tab.Key, KeyMap.Tab.Physical, modifiers | RawInputModifiers.Shift, timestamp);
+        }
 
         if (includeActivation)
         {
