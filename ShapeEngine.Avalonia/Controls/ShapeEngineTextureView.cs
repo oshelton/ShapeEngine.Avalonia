@@ -30,6 +30,12 @@ namespace ShapeEngine.Avalonia.Controls;
 /// </remarks>
 public abstract class ShapeEngineTextureView : Control
 {
+    /// <summary>Caps the texture a very large scale can ask for - read back cost grows with its area.</summary>
+    private const int MaxTextureSize = 4096;
+
+    private const double MinRenderScale = 0.25;
+    private const double MaxRenderScale = 4.0;
+
     private readonly FramePump pump;
 
     private RenderTexture2D renderTexture;
@@ -105,14 +111,19 @@ public abstract class ShapeEngineTextureView : Control
     }
 
     /// <summary>Creates or resizes the render texture to match the control's size in physical pixels.</summary>
+    /// <remarks>
+    /// Reallocating on every distinct size is fine because the sizes arrive settled rather than streamed:
+    /// the engine polls the window size once per frame, and dragging a window border on Windows blocks
+    /// inside the platform's modal resize loop, so no frames run until the drag ends.
+    /// </remarks>
     private bool EnsureTexture()
     {
         if (Bounds.Width <= 0.0 || Bounds.Height <= 0.0) return false;
 
-        var scaling = (VisualRoot as TopLevel)?.RenderScaling ?? 1.0;
+        var (scaleX, scaleY) = GetRenderScale();
         var size = new PixelSize(
-            Math.Max((int)Math.Round(Bounds.Width * scaling), 1),
-            Math.Max((int)Math.Round(Bounds.Height * scaling), 1));
+            Math.Clamp((int)Math.Round(Bounds.Width * scaleX), 1, MaxTextureSize),
+            Math.Clamp((int)Math.Round(Bounds.Height * scaleY), 1, MaxTextureSize));
 
         if (hasTexture && size == textureSize) return true;
 
@@ -127,6 +138,34 @@ public abstract class ShapeEngineTextureView : Control
         // A fresh texture holds nothing, so it needs a draw whatever the redraw policy says.
         isDirty = true;
         return true;
+    }
+
+    /// <summary>The scale the control is actually rasterized at, per axis.</summary>
+    /// <remarks>
+    /// The window's DPI is only half of it: <see cref="Visual.Bounds"/> is in the control's own coordinate
+    /// space, so a <c>Viewbox</c> - or any other ancestor scale, which is what
+    /// <see cref="AvaloniaSurface.ScaleContent"/> uses - leaves the control reporting its unscaled size
+    /// while being drawn much larger. Sizing the texture from bounds alone therefore renders at the small
+    /// size and lets Skia upscale the result, which is exactly where these views used to go soft.
+    /// </remarks>
+    private (double X, double Y) GetRenderScale()
+    {
+        var scaling = (VisualRoot as TopLevel)?.RenderScaling ?? 1.0;
+
+        var x = scaling;
+        var y = scaling;
+
+        // Column lengths rather than M11/M22 alone, so a rotation between here and the root still gives
+        // the scale it contributes rather than its cosine.
+        if (VisualRoot is Visual root && this.TransformToVisual(root) is { } transform)
+        {
+            x *= Math.Sqrt(transform.M11 * transform.M11 + transform.M12 * transform.M12);
+            y *= Math.Sqrt(transform.M21 * transform.M21 + transform.M22 * transform.M22);
+        }
+
+        // Clamped rather than rounded to a step: the scale is used exactly, since read back cost grows
+        // with the texture's area and rounding up would pay for resolution nothing asked for.
+        return (Math.Clamp(x, MinRenderScale, MaxRenderScale), Math.Clamp(y, MinRenderScale, MaxRenderScale));
     }
 
     private unsafe void CopyToBitmap()
