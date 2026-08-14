@@ -9,8 +9,11 @@ public static class ExamplesLayout
     /// <summary>Fraction of the window height the nav bar occupies.</summary>
     public const float NavHeight = 0.09f;
 
-    /// <summary>Top edge of the content band, directly below the nav bar.</summary>
-    public const float ContentTop = NavHeight;
+    /// <summary>Gap between the nav bar and the content below it, so no panel sits flush against it.</summary>
+    public const float TopInset = 0.02f;
+
+    /// <summary>Top edge of the content band.</summary>
+    public const float ContentTop = NavHeight + TopInset;
 
     /// <remarks>
     /// Short of the literal window edge on purpose: a maximized window's reported size doesn't always

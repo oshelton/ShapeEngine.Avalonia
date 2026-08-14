@@ -22,9 +22,6 @@ internal static class AvaloniaDragDropPanelChrome
             .BorderThickness(new Thickness(1))
             .CornerRadius(new CornerRadius(12))
             .Padding(new Thickness(18))
-            // Part of the scaled content rather than the surface's anchor, so the gap keeps its
-            // proportion to the card at any window size instead of shrinking away as the card grows.
-            .Margin(new Thickness(0, 16, 0, 0))
             .VerticalAlignment(VerticalAlignment.Top)
             .Child(
                 new StackPanel()
