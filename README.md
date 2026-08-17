@@ -2,6 +2,26 @@
 
 Avalonia UI integration for [ShapeEngine](https://github.com/DaveGreen-Games/ShapeEngine), a 2D game engine built on [raylib](https://www.raylib.com/). It hosts a real Avalonia `TopLevel` inside a ShapeEngine/raylib window and renders it with Skia directly onto the engine's OpenGL surface — no second window, no offscreen hand-off between renderers.
 
+This project uses a similar approach to [Estragonia](https://github.com/youfch/Estragonia)
+
+## Features
+
+- Display and interact with Avalonia controls within a ShapeEngine/Raylib CS created window.
+- Render ShapeEngine content to a texture to be used in an Avalonia control or directly render ShapeEngine content into an Avalonia control.
+- Fully support Avalonia animations.
+- Multiple separate Avalonia surfaces supported, with drag/drop support between them with ShapeEngine rendering the drag/drop chip.
+- High performance GPU rendering of Avlaonia content with an OpenGL context from ShapeEngine/Raylib CS.
+- Easily apply shader effects to Avalonia controls.
+- Avalonia content can scale with the host window or maintain its relative size and positioning in the window as the window is resized.
+
+## Limitations
+
+- Lighly tested, pretty unproven.
+- No tests.
+- Some Avalonia platform functionality not really implemented such as those for dialogs.
+- Avalonia appears to aggravate some known issues with mouse cursor behavior.  See this [PR](https://github.com/DaveGreen-Games/ShapeEngine/pull/180) for more details.
+- Input handling could use some refinements, but it may be difficult without changes to ShapeEngine itself.
+
 ## How it works
 
 Avalonia normally owns its own window and rendering loop. This project replaces those pieces with ShapeEngine/raylib equivalents so the two can share a single window and a single OpenGL context:
