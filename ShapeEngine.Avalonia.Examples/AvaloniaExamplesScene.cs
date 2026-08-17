@@ -147,9 +147,17 @@ public sealed class AvaloniaExamplesScene : Scene
     }
 
     /// <remarks>
-    /// Relies on <see cref="AvaloniaSurface.ScaleContent"/> to shrink the row into a narrow window rather
-    /// than wrapping or clipping it. No intrinsic <c>Width</c> needed, unlike a panel with wrapping text -
-    /// a row of non-wrapping buttons already has a natural size to scale from.
+    /// Laid out at its real size rather than through <see cref="AvaloniaSurface.ScaleContent"/>, so the
+    /// labels stay crisp and the bar reads the same at every window size instead of growing and shrinking
+    /// with it. That trades away the Viewbox's automatic fit, so the row has to fit the strip unaided.
+    /// <para>
+    /// Which makes the row's height a hard floor rather than a preference, and the reason
+    /// <see cref="ExamplesLayout.NavHeight"/> is set from the minimum window size. A RadioButton measures
+    /// 32 DIP whatever is asked of it - clearing <c>MinHeight</c> does nothing, and an explicit
+    /// <c>Height</c> crops the marker ellipse instead of shrinking it - so the border lands at 39 DIP and
+    /// the strip has to be tall enough to hold that, or it clips rather than centers. Keeping the chrome
+    /// thin is still worth it: it is what leaves the fraction as low as it is.
+    /// </para>
     /// </remarks>
     private void BuildNav()
     {
@@ -159,10 +167,16 @@ public sealed class AvaloniaExamplesScene : Scene
         {
             var view = views[i];
 
+            // Left at its natural 32 DIP height. Neither clearing MinHeight nor setting an explicit Height
+            // shrinks one of these usefully: Fluent places the marker ellipse from the template, tuned to
+            // that 32, so a shorter button slices the bottom off the marker rather than recentering it.
             buttons[i] = new RadioButton()
                 .GroupName("exampleView")
                 .Content(view.Label)
-                .Padding(new Thickness(14, 8))
+                .FontSize(12)
+                .Padding(new Thickness(6, 0, 0, 0))
+                .VerticalAlignment(VerticalAlignment.Center)
+                .VerticalContentAlignment(VerticalAlignment.Center)
                 .IsChecked(ReferenceEquals(view, currentView))
                 .OnIsCheckedChanged(e =>
                 {
@@ -174,16 +188,20 @@ public sealed class AvaloniaExamplesScene : Scene
         var content = new Border()
             .Background(new SolidColorBrush(Color.FromArgb(230, 20, 20, 28)))
             .BorderBrush(new SolidColorBrush(Color.FromArgb(255, 90, 90, 130)))
-            .BorderThickness(new Thickness(0, 0, 0, 1))
-            .Padding(new Thickness(16, 10))
+            .BorderThickness(new Thickness(1))
+            .CornerRadius(new CornerRadius(8))
+            .Margin(new Thickness(8, 2))
+            .Padding(new Thickness(10, 2))
+            .HorizontalAlignment(HorizontalAlignment.Center)
+            .VerticalAlignment(VerticalAlignment.Center)
             .Child(
                 new StackPanel()
                     .Orientation(Orientation.Horizontal)
-                    .Spacing(8)
+                    .Spacing(10)
                     .VerticalAlignment(VerticalAlignment.Center)
                     .Children(buttons));
 
-        CreateSurface(ExamplesLayout.NavBar, scaleContent: true, content: content);
+        CreateSurface(ExamplesLayout.NavBar, scaleContent: false, content: content);
     }
 
     /// <summary>A surface covering the content band, laid out with a <see cref="DockPanel"/>: a strip

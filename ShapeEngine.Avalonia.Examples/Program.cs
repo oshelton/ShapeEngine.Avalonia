@@ -30,7 +30,7 @@ public static class Program
             // Off until a ShapeEngine release carries the GameWindow.MoveMouse fix: before that, a HighDPI
             // window walks the cursor into the corner whenever the keyboard drives Avalonia focus.
             // See https://github.com/DaveGreen-Games/ShapeEngine/pull/180
-            HighDPI = false,
+            HighDPI = true,
             FramebufferTransparent = false
         };
 

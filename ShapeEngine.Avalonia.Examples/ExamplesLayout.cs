@@ -7,7 +7,18 @@ namespace AvaloniaExamples;
 public static class ExamplesLayout
 {
     /// <summary>Fraction of the window height the nav bar occupies.</summary>
-    public const float NavHeight = 0.09f;
+    /// <remarks>
+    /// Sized for the smallest window rather than the nicest looking one. The nav bar is laid out at its
+    /// real size, and its row of buttons has a floor of roughly 39 device independent pixels that no
+    /// amount of restyling gets under - Fluent's own metrics for a RadioButton. At the 1024x640 minimum
+    /// this fraction has to cover that floor <em>after</em> <c>HighDPI</c> has divided the strip by the
+    /// display scale, which is what makes 0.09 - fine at 100% - clip the bar in half on a 175% display.
+    /// <para>
+    /// The strip draws nothing itself, so the headroom this leaves at larger window sizes costs only
+    /// content band height, not a visible gap.
+    /// </para>
+    /// </remarks>
+    public const float NavHeight = 0.14f;
 
     /// <summary>Gap between the nav bar and the content below it, so no panel sits flush against it.</summary>
     public const float TopInset = 0.02f;
