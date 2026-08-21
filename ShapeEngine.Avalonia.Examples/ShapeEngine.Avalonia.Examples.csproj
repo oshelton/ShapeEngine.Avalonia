@@ -20,4 +20,9 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The font ShapeEngine's own examples default to, so the Avalonia UI matches the game text. -->
+    <AvaloniaResource Include="Resources/Fonts/JetBrainsMono.ttf" />
+  </ItemGroup>
+
 </Project>
