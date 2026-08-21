@@ -23,6 +23,9 @@
   <ItemGroup>
     <!-- The font ShapeEngine's own examples default to, so the Avalonia UI matches the game text. -->
     <AvaloniaResource Include="Resources/Fonts/JetBrainsMono.ttf" />
+    <!-- The same file again, for the FPS readout: raylib loads it from the assembly's own resources
+         rather than through Avalonia's asset loader, which only sees AvaloniaResource items. -->
+    <EmbeddedResource Include="Resources/Fonts/JetBrainsMono.ttf" LogicalName="JetBrainsMono.ttf" />
   </ItemGroup>
 
 </Project>

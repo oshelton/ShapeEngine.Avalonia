@@ -19,11 +19,25 @@ public sealed class AvaloniaExamplesGame(
 {
     private static readonly ColorRgba CursorColor = new(255, 190, 120, 255);
 
+    private readonly ExamplesFpsDisplay fpsDisplay = new();
+
     /// <remarks>
     /// The earliest the base <see cref="Game"/> calls back into a subclass, and Avalonia setup - which the
     /// scene's activation triggers - needs the raylib window, and so the OpenGL context, to exist first.
     /// </remarks>
-    protected override void BeginRun() => GoToScene(new AvaloniaExamplesScene());
+    protected override void BeginRun()
+    {
+        fpsDisplay.Load();
+        GoToScene(new AvaloniaExamplesScene());
+    }
+
+    /// <remarks>The mirror of <see cref="BeginRun"/>: the last callback before the window, and the OpenGL
+    /// context the font texture lives in, goes away.</remarks>
+    protected override void EndRun() => fpsDisplay.Unload();
+
+    /// <remarks>The UI pass runs after every screen texture has composited, so the readout sits over the
+    /// Avalonia surfaces rather than under them.</remarks>
+    protected override void DrawUI(ScreenInfo uiInfo) => fpsDisplay.Draw(uiInfo);
 
     /// <remarks>
     /// Kept hidden even over Avalonia content, rather than handed back to whichever surface has the
