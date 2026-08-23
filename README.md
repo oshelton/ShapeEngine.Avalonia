@@ -22,7 +22,9 @@ This project uses a similar approach to [Estragonia](https://github.com/youfch/E
 - Multiple separate Avalonia surfaces supported, with drag/drop support between them with ShapeEngine rendering the drag/drop chip.
 - High performance GPU rendering of Avlaonia content with an OpenGL context from ShapeEngine/Raylib CS.
 - Easily apply shader effects to Avalonia controls.
+- Show and hide existing panels as needed — a hidden panel keeps its state but costs nothing while it's off screen.
 - Avalonia content can scale with the host window or maintain its relative size and positioning in the window as the window is resized.
+- ShapeEngine can draw directly over an Avalonia control's on-screen position, as shown by the animated focus ring in the Directional Nav example.
 - Avalonia's thread is the game thread, so interacting is simple.
 
 ## Limitations
