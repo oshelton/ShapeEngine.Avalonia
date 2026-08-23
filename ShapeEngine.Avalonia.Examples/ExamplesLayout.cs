@@ -3,28 +3,33 @@ using ShapeEngine.Avalonia;
 
 namespace AvaloniaExamples;
 
-/// <summary>Fixed regions of the window: a nav bar strip across the top, and the content band below it.</summary>
+/// <summary>Fixed regions of the window: a navigation sidebar down the left, and the content band
+/// beside it.</summary>
 public static class ExamplesLayout
 {
-    /// <summary>Fraction of the window height the nav bar occupies.</summary>
+    /// <summary>Fraction of the window width the navigation sidebar occupies.</summary>
     /// <remarks>
-    /// Sized for the smallest window rather than the nicest looking one. The nav bar is laid out at its
-    /// real size, so its row of buttons is a floor rather than a preference: whatever the theme measures
-    /// a RadioButton and the panel around it at. At the 1024x640 minimum this fraction has to cover that
-    /// floor <em>after</em> <c>HighDPI</c> has divided the strip by the display scale, which is what makes
-    /// 0.09 - fine at 100% - clip the bar in half on a 175% display.
-    /// <para>
-    /// The strip draws nothing itself, so the headroom this leaves at larger window sizes costs only
-    /// content band height, not a visible gap.
-    /// </para>
+    /// The sidebar is laid out at its real size rather than through <see cref="AvaloniaSurface.ScaleContent"/>,
+    /// so this fraction is what decides how many device independent pixels its items get to lay out in -
+    /// and with <c>HighDPI</c> on, that is the fraction of the window in physical pixels divided by the
+    /// display scale. At the default window size it works out to a conventional sidebar width; shrunk to
+    /// the 1024x640 minimum on a 175% display the whole window is only 585 DIP across, and the longest
+    /// item label ellipsizes rather than fitting. Widening this to cover that case would leave the sidebar
+    /// taking a quarter of the window at every ordinary size, which is the worse trade.
     /// </remarks>
-    public const float NavHeight = 0.14f;
+    public const float SidebarWidth = 0.22f;
 
-    /// <summary>Gap between the nav bar and the content below it, so no panel sits flush against it.</summary>
-    public const float TopInset = 0.02f;
+    /// <summary>Gap between the sidebar and the content beside it, so no panel sits flush against it.</summary>
+    public const float SideInset = 0.02f;
 
-    /// <summary>Top edge of the content band.</summary>
-    public const float ContentTop = NavHeight + TopInset;
+    /// <summary>Left edge of the content band.</summary>
+    public const float ContentLeft = SidebarWidth + SideInset;
+
+    /// <summary>Right edge of the content band.</summary>
+    public const float ContentRight = 1f - SideInset;
+
+    /// <summary>Width of the content band.</summary>
+    public const float ContentWidth = ContentRight - ContentLeft;
 
     /// <remarks>
     /// Short of the literal window edge on purpose: a maximized window's reported size doesn't always
@@ -33,21 +38,25 @@ public static class ExamplesLayout
     /// </remarks>
     public const float BottomInset = 0.02f;
 
-    /// <summary>Bottom edge of the content band.</summary>
+    /// <summary>Top edge of the content band, and of the sidebar beside it.</summary>
+    public const float ContentTop = 0.02f;
+
+    /// <summary>Bottom edge of the content band, and of the sidebar beside it.</summary>
     public const float ContentBottom = 1f - BottomInset;
 
     /// <summary>Height of the content band.</summary>
     public const float ContentHeight = ContentBottom - ContentTop;
 
-    /// <summary>Keeps a panel off the window edge.</summary>
+    /// <summary>Keeps a panel off the edge of the content band.</summary>
     public const float Inset = 0.03f;
 
-    /// <summary>The nav bar's own anchor: the full window width, pinned to the top.</summary>
-    public static AvaloniaSurfaceAnchor NavBar => new(new Vector2(1f, NavHeight), Vector2.Zero);
+    /// <summary>The sidebar's own anchor: a column down the left, as tall as the content band.</summary>
+    public static AvaloniaSurfaceAnchor Sidebar =>
+        new(new Vector2(SidebarWidth, ContentHeight), new Vector2(0f, ContentTop / (1f - ContentHeight)));
 
     /// <summary>
-    /// An anchor for the given rectangle within the content band, in fractions of the window measured
-    /// from the top left.
+    /// An anchor for the given rectangle within the content band, in fractions of the band itself
+    /// measured from its top left - so <c>(0, 1)</c> is the whole band whatever the sidebar takes.
     /// </summary>
     /// <remarks>
     /// <see cref="AvaloniaSurfaceAnchor"/> pins by a fraction that doubles as the surface's own origin,
@@ -56,12 +65,15 @@ public static class ExamplesLayout
     /// </remarks>
     public static AvaloniaSurfaceAnchor Content(float left, float width)
     {
-        var x = width < 1f ? left / (1f - width) : 0f;
+        var stretch = width * ContentWidth;
+        var edge = ContentLeft + left * ContentWidth;
+
+        var x = stretch < 1f ? edge / (1f - stretch) : 0f;
         var y = ContentTop / (1f - ContentHeight);
 
-        return new AvaloniaSurfaceAnchor(new Vector2(width, ContentHeight), new Vector2(x, y));
+        return new AvaloniaSurfaceAnchor(new Vector2(stretch, ContentHeight), new Vector2(x, y));
     }
 
-    /// <summary>A column filling the content band, centered horizontally in the window.</summary>
+    /// <summary>A column of the given width, centered within the content band.</summary>
     public static AvaloniaSurfaceAnchor CenteredColumn(float width) => Content((1f - width) / 2f, width);
 }

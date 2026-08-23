@@ -10,11 +10,14 @@ using SeRect = ShapeEngine.Geometry.RectDef.Rect;
 
 namespace AvaloniaExamples;
 
-/// <summary>A frames per second readout pinned to the top right of the window, drawn by ShapeEngine.</summary>
+/// <summary>A frames per second readout pinned to the foot of the navigation sidebar, drawn by
+/// ShapeEngine.</summary>
 /// <remarks>
-/// Deliberately not an Avalonia control. Drawn from the game's <c>DrawUI</c> pass it lands over every
-/// surface - screen textures composite before that pass - so the rate stays visible whatever the panels
-/// are doing, and stays readable even if the Avalonia side stops presenting entirely.
+/// Deliberately not an Avalonia control, and so not in the sidebar's own footer slot either. Drawn from
+/// the game's <c>DrawUI</c> pass it lands over every surface - screen textures composite before that pass
+/// - so the rate stays visible whatever the panels are doing, and stays readable even if the Avalonia side
+/// stops presenting entirely. It only borrows the sidebar's geometry from <see cref="ExamplesLayout"/>,
+/// landing on the empty space the nav items leave below them.
 /// </remarks>
 public sealed class ExamplesFpsDisplay
 {
@@ -43,7 +46,8 @@ public sealed class ExamplesFpsDisplay
     /// <summary>Text height, as a fraction of the window's shorter side.</summary>
     private const float FontSizeFraction = 0.026f;
 
-    /// <summary>Gap between the badge and the window edge, as a fraction of the window's shorter side.</summary>
+    /// <summary>Gap between the badge and the foot of the sidebar, as a fraction of the window's shorter
+    /// side.</summary>
     private const float MarginFraction = 0.014f;
 
     /// <summary>Space kept for the number, so the badge doesn't resize as the rate crosses 10 or 100.</summary>
@@ -112,10 +116,20 @@ public sealed class ExamplesFpsDisplay
         var paddingY = labelSize.Height * 0.3f;
         var badgeSize = new Size(reserved + paddingX * 2f, labelSize.Height + paddingY * 2f);
 
-        // Centered in the nav bar strip rather than pinned to the very top, so it reads as part of the
-        // same chrome as the nav buttons instead of sitting above them.
-        var navBar = new SeRect(ui.Area.Left, ui.Area.Top, ui.Area.Width, ui.Area.Height * ExamplesLayout.NavHeight);
-        var badge = new SeRect(new Vector2(navBar.Right - reference * MarginFraction, navBar.Center.Y), badgeSize, AnchorPoint.Right);
+        // Sat at the foot of the navigation sidebar's column rather than in a corner of the window, so it
+        // reads as part of the same chrome as the nav items above it. Drawn over the sidebar rather than
+        // placed in its footer slot, which is what keeps it independent of Avalonia - see the remarks on
+        // the class.
+        var sidebar = new SeRect(
+            ui.Area.Left,
+            ui.Area.Top + ui.Area.Height * ExamplesLayout.ContentTop,
+            ui.Area.Width * ExamplesLayout.SidebarWidth,
+            ui.Area.Height * ExamplesLayout.ContentHeight);
+
+        var badge = new SeRect(
+            new Vector2(sidebar.Center.X, sidebar.Bottom - reference * MarginFraction),
+            badgeSize,
+            AnchorPoint.BottomCenter);
 
         badge.DrawRounded(BackgroundColorRgba, BadgeRoundness, BadgeSegments);
         badge.DrawLinesRounded(Math.Max(1f, reference * 0.0015f), BorderColorRgba, BadgeRoundness, BadgeSegments);

@@ -19,12 +19,12 @@ using SeRect = ShapeEngine.Geometry.RectDef.Rect;
 namespace AvaloniaExamples;
 
 /// <summary>
-/// A single scene hosting all of the Avalonia example views at once, switched between with a nav bar
+/// A single scene hosting all of the Avalonia example views at once, switched between with a sidebar
 /// rather than each living on its own menu-selectable scene.
 /// </summary>
 /// <remarks>
 /// Each view is built once, at activation, into an <see cref="ExampleView"/> owning its surfaces, their
-/// content and its per-frame work, and the nav bar is built from that same list - so adding a view means
+/// content and its per-frame work, and the sidebar is built from that same list - so adding a view means
 /// adding one <c>Build</c> method and nothing else. Surfaces stay alive for the scene's lifetime rather
 /// than being disposed and recreated on every click.
 /// </remarks>
@@ -60,6 +60,9 @@ public sealed class AvaloniaExamplesScene : Scene
 
     private const float GalleryTransitionInterval = 1.6f;
 
+    /// <summary>Gap between the sidebar's items, which pad themselves but do not space themselves.</summary>
+    private const double SidebarItemSpacing = 4;
+
     private readonly List<AvaloniaSurface> surfaces = [];
     private readonly List<ExampleView> views = [];
     private readonly List<(Vector2 Position, Vector2 Velocity, float Radius, ColorRgba Color)> circles = [];
@@ -76,7 +79,7 @@ public sealed class AvaloniaExamplesScene : Scene
         views.Add(BuildDragDropViews());
         views.Add(BuildDirectionalNavView());
 
-        // Before the nav bar, so its buttons can check themselves against the view already showing.
+        // Before the sidebar, so its items can check themselves against the view already showing.
         ShowView(views[0]);
         BuildNav();
 
@@ -146,50 +149,46 @@ public sealed class AvaloniaExamplesScene : Scene
         return surface;
     }
 
+    /// <summary>Builds the sidebar the views are switched between with.</summary>
     /// <remarks>
     /// Laid out at its real size rather than through <see cref="AvaloniaSurface.ScaleContent"/>, so the
-    /// labels stay crisp and the bar reads the same at every window size instead of growing and shrinking
-    /// with it. That trades away the Viewbox's automatic fit, so the row has to fit the strip unaided.
+    /// labels stay crisp and the sidebar reads the same at every window size instead of growing and
+    /// shrinking with it. That trades away the Viewbox's automatic fit, so the items have to fit the
+    /// column unaided - which is what <see cref="ExamplesLayout.SidebarWidth"/> is picked for, and why the
+    /// labels are given as ellipsizing text blocks for the sizes where the fraction is not enough.
     /// <para>
-    /// Which makes the row's height a hard floor rather than a preference, and the reason
-    /// <see cref="ExamplesLayout.NavHeight"/> is set from the minimum window size. A RadioButton measures
-    /// 32 DIP whatever is asked of it - clearing <c>MinHeight</c> does nothing, and an explicit
-    /// <c>Height</c> crops the marker ellipse instead of shrinking it - so the border lands at 39 DIP and
-    /// the strip has to be tall enough to hold that, or it clips rather than centers. Keeping the chrome
-    /// thin is still worth it: it is what leaves the fraction as low as it is.
+    /// Nothing here sets a group name or wires the items to one another: a <c>SidebarItem</c> is a
+    /// <c>RadioButton</c> that takes its group from the <c>Sidebar</c> it sits in, so picking one clears
+    /// the rest on its own. The bottom of the sidebar is left empty for the frames per second readout,
+    /// which <see cref="ExamplesFpsDisplay"/> draws over it rather than into it.
     /// </para>
     /// </remarks>
     private void BuildNav()
     {
-        var buttons = new Control[views.Count];
+        var items = new Control[views.Count + 1];
+        items[0] = ExampleControls.NavigationLabel("Views");
 
         for (var i = 0; i < views.Count; i++)
         {
             var view = views[i];
+            var item = ExampleControls.NavigationItem(view.Label);
 
-            buttons[i] = new RadioButton()
-                .GroupName("exampleView")
-                .Content(view.Label)
-                .VerticalAlignment(VerticalAlignment.Center)
-                .IsChecked(ReferenceEquals(view, currentView))
-                .OnIsCheckedChanged(e =>
-                {
-                    if (((RadioButton)e.Source!).IsChecked != true) return;
-                    ShowView(view);
-                });
+            item.IsChecked = ReferenceEquals(view, currentView);
+            item.IsCheckedChanged += (_, _) =>
+            {
+                if (item.IsChecked != true) return;
+                ShowView(view);
+            };
+
+            items[i + 1] = item;
         }
 
-        var content = ExampleControls.Panel()
-            .HorizontalAlignment(HorizontalAlignment.Center)
-            .VerticalAlignment(VerticalAlignment.Center)
-            .Child(
-                new StackPanel()
-                    .Orientation(Orientation.Horizontal)
-                    .Spacing(10)
-                    .VerticalAlignment(VerticalAlignment.Center)
-                    .Children(buttons));
+        var sidebar = ExampleControls.NavigationSidebar();
 
-        CreateSurface(ExamplesLayout.NavBar, scaleContent: false, content: content);
+        sidebar.Header = ExampleControls.Title("Examples");
+        sidebar.Content = new StackPanel().Spacing(SidebarItemSpacing).Children(items);
+
+        CreateSurface(ExamplesLayout.Sidebar, scaleContent: false, content: sidebar);
     }
 
     /// <summary>A surface covering the content band, laid out with a <see cref="DockPanel"/>: a strip
@@ -334,7 +333,7 @@ public sealed class AvaloniaExamplesScene : Scene
     private ExampleView BuildDirectionalNavView()
     {
         var panel = new AvaloniaDirectionalNavPanel();
-        var surface = CreateSurface(ExamplesLayout.CenteredColumn(0.62f), scaleContent: true);
+        var surface = CreateSurface(ExamplesLayout.CenteredColumn(0.8f), scaleContent: true);
 
         surface.GamepadNavigation = GamepadNavigationMode.Directional;
         surface.KeyboardDrivenNavigation = true;
