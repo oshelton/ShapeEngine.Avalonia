@@ -83,6 +83,13 @@ dotnet build ShapeEngine.Avalonia.slnx
 
 Or open `ShapeEngine.Avalonia.slnx` directly in Visual Studio, Rider, or VS Code with the C# Dev Kit.
 
+### Running the examples
+
+`ShapeEngine.Avalonia.Examples` is the runnable showcase for the screenshots above (`dotnet run --project ShapeEngine.Avalonia.Examples`). Two window-level shortcuts work from anywhere in the app, even mid-edit in a text box:
+
+- `Alt+Enter` — toggle borderless fullscreen.
+- `Escape` — quit.
+
 ## Project structure
 
 ```
