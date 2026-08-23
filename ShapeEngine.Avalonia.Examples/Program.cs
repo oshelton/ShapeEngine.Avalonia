@@ -34,7 +34,20 @@ public static class Program
             FramebufferTransparent = false
         };
 
-        var framerateSettings = FramerateSettings.Default;
+        // Fully unlocked: every cap the engine can apply is switched off. The window's Vsync is already
+        // Disabled above, so nothing else is holding the loop back.
+        var framerateSettings = new FramerateSettings(
+            frameRateLimit: 0,                  // 0 = no global cap (Default caps at 60)
+            fixedFramerate: 0,                  // no fixed-timestep update loop
+            minFrameRate: 0,                    // no lower bound clamping the values above
+            maxFrameRate: 0,                    // no upper bound - Default's 120 lived here
+            unfocusedFrameRateLimit: 0,         // do not drop to 30 when the window loses focus
+            idleFrameRateLimit: 0,              // do not drop to 30 after a spell without input
+            idleTimeThreshold: 0f,              // and do not track idleness at all
+            adaptiveFpsLimiterSettings: AdaptiveFpsLimiter.Settings.Disabled,
+            maxDeltaTime: 0.25,                 // delta clamping and substepping do not cap the rate;
+            minDynamicSubsteppingFramerate: 30, // they only bound how large a single update step gets
+            maxDynamicSubsteps: 6);
 
         var inputSettings = new InputSettings
         (

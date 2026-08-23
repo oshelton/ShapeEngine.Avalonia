@@ -1,4 +1,5 @@
 using System.Numerics;
+using Raylib_cs;
 using ShapeEngine.Color;
 using ShapeEngine.Core.GameDef;
 using ShapeEngine.Core.Structs;
@@ -39,9 +40,42 @@ public sealed class AvaloniaExamplesGame(
     /// context the font texture lives in, goes away.</remarks>
     protected override void EndRun() => fpsDisplay.Unload();
 
+    /// <summary>Handles the window-level shortcuts, which belong to the shell rather than to any one
+    /// example - so they keep working whichever view the sidebar has showing.</summary>
+    protected override void Update(GameTime time, ScreenInfo game, ScreenInfo gameUi, ScreenInfo ui)
+    {
+        if (IsFullscreenTogglePressed()) ToggleWindowMode();
+    }
+
     /// <remarks>The UI pass runs after every screen texture has composited, so the readout sits over the
     /// Avalonia surfaces rather than under them.</remarks>
     protected override void DrawUI(ScreenInfo uiInfo) => fpsDisplay.Draw(uiInfo);
+
+    /// <summary>Swaps between a normal window and a borderless fullscreen one.</summary>
+    /// <remarks>
+    /// Spelled out as two calls rather than <c>Window.ToggleBorderlessFullscreen</c> so the windowed half
+    /// of the toggle is always the normal state: <see cref="GameWindow.RestoreWindow"/> also drops a
+    /// maximized window back to its normal size, which a plain toggle would leave maximized.
+    /// <para>
+    /// Borderless is unaffected by the <c>FullscreenAutoRestoring</c> the examples set - that only governs
+    /// exclusive fullscreen - so the window stays fullscreen when focus moves elsewhere.
+    /// </para>
+    /// </remarks>
+    private void ToggleWindowMode()
+    {
+        if (Window.IsWindowBorderlessFullscreen()) Window.RestoreWindow();
+        else Window.ActivateBorderlessFullscreen();
+    }
+
+    /// <remarks>
+    /// Polled straight from raylib for the reason the scene polls Escape that way: a surface locks the
+    /// keyboard device while a control is mid-edit (see <c>AvaloniaSurface.CaptureGameInput</c>), which
+    /// zeroes out anything read through ShapeEngine's input system - the shortcut has to work whichever
+    /// surface has focus, including with the caret sitting in a text box.
+    /// </remarks>
+    private static bool IsFullscreenTogglePressed()
+        => (Raylib.IsKeyPressed(KeyboardKey.Enter) || Raylib.IsKeyPressed(KeyboardKey.KpEnter))
+           && (Raylib.IsKeyDown(KeyboardKey.LeftAlt) || Raylib.IsKeyDown(KeyboardKey.RightAlt));
 
     /// <remarks>
     /// Kept hidden even over Avalonia content, rather than handed back to whichever surface has the
