@@ -70,6 +70,11 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// <param name="order">
     /// Execution order relative to other custom events. Lower values run - and draw - first.
     /// </param>
+    /// <param name="shaderSupport">
+    /// How many shaders <see cref="PlacementTexture"/> can post-process the interface with. Anything
+    /// other than <see cref="ShaderSupportType.None"/> costs a second render texture of the surface's
+    /// size, so a surface that will never carry a shader is worth declaring as such.
+    /// </param>
     /// <exception cref="InvalidOperationException">
     /// Avalonia has not been configured with <see cref="AppBuilderExtensions.UseShapeEngine"/>.
     /// </exception>
@@ -77,7 +82,8 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
         AvControl? content = null,
         AvaloniaSurfaceAnchor? anchor = null,
         bool scaleContent = false,
-        int order = 0)
+        int order = 0,
+        ShaderSupportType shaderSupport = ShaderSupportType.Multi)
         : base(order)
     {
         if (!ShapeEnginePlatform.IsInitialized)
@@ -88,8 +94,9 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
 
         var placementAnchor = anchor ?? AvaloniaSurfaceAnchor.FullScreen;
 
-        // Multi shader support up front, so post-processing the interface never means rebuilding it.
-        placement = new ScreenTexture(placementAnchor.Stretch, placementAnchor.Position, ShaderSupportType.Multi);
+        // Multi by default, so post-processing the interface never means rebuilding it - at the price of
+        // the shader buffer texture, which is why the caller can opt out.
+        placement = new ScreenTexture(placementAnchor.Stretch, placementAnchor.Position, shaderSupport);
         placement.Initialize(Game.Instance.Window.CurScreenSize, Raylib.GetMousePosition());
         placement.OnDrawGame += OnPlacementDraw;
 
@@ -164,6 +171,11 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// <summary>The area of the window the UI is drawn into, in screen coordinates.</summary>
     public SeRect DestinationRect => placement.GetDestinationRect();
 
+    /// <summary>Whether the surface is currently on the game. Surfaces start shown.</summary>
+    /// <seealso cref="Show"/>
+    /// <seealso cref="Hide"/>
+    public bool IsVisible { get; private set; } = true;
+
     /// <summary>Whether the cursor is currently over a hit-testable Avalonia control.</summary>
     public bool WantsPointer { get; private set; }
 
@@ -220,16 +232,80 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// </remarks>
     public bool KeyboardDrivenNavigation { get; set; }
 
+    #region Showing and hiding
+
+    /// <summary>Puts the surface back on the game, resizing it first if the window changed while it was
+    /// away.</summary>
+    /// <remarks>
+    /// A hidden surface is off the game's screen texture list entirely, which is what makes it free -
+    /// the engine neither updates, renders nor composites it. The cost is that it also stops tracking
+    /// the window, so this catches it up before the first frame back.
+    /// <para>
+    /// Deliberately caught up here rather than tracked while hidden: <see cref="ScreenTexture.Update"/>
+    /// only reloads the render texture when the size it is given differs from the size it holds, so a
+    /// surface that outlives several resizes still reallocates once, on the way back in, rather than
+    /// once per resize it sat through.
+    /// </para>
+    /// <para>
+    /// Safe to call from input handling or from a scene's update - a control's click handler and a menu's
+    /// update are both fine. The engine sizes screen textures before either and draws them after, so a
+    /// surface shown there draws the same frame, at the size set here rather than at whatever the engine's
+    /// sizing pass left behind before this surface rejoined.
+    /// </para>
+    /// </remarks>
+    public void Show()
+    {
+        if (isDisposed || IsVisible) return;
+
+        IsVisible = true;
+
+        // Before the texture goes back on the game, so the frame it rejoins is already the right size.
+        placement.Update(0f, Game.Instance.Window.CurScreenSize, Raylib.GetMousePosition(), Game.Instance.Paused);
+        SyncSize();
+
+        Game.Instance.AddScreenTexture(placement);
+    }
+
+    /// <summary>Takes the surface off the game, so it costs nothing until it is shown again.</summary>
+    /// <remarks>
+    /// The Avalonia content is left intact and keeps its state - scroll positions, focus, animation
+    /// clocks - so showing the surface again picks up where it left off. To drop the content instead,
+    /// set <see cref="Content"/> to <c>null</c>.
+    /// <para>
+    /// Input locks are released on the way out: a hidden surface must not leave the game's mouse or
+    /// keyboard locked to a UI that is no longer on screen.
+    /// </para>
+    /// </remarks>
+    public void Hide()
+    {
+        if (isDisposed || !IsVisible) return;
+
+        IsVisible = false;
+
+        Game.Instance.RemoveScreenTexture(placement);
+
+        ReleaseInputLocks();
+        WantsPointer = false;
+        WantsKeyboard = false;
+        wantsExclusiveKeyboard = false;
+    }
+
+    #endregion
+
     #region Game loop hooks
 
     /// <inheritdoc/>
     /// <remarks>
     /// Runs after the engine has updated the screen textures, so the placement texture's size and scaled
     /// mouse position are already current.
+    /// <para>
+    /// A hidden surface reads no input at all: it is not on screen, so there is nothing for the pointer
+    /// to be over, and hit testing it would let it take the pointer away from whatever is.
+    /// </para>
     /// </remarks>
     protected override void PreHandleInput(GameTime time, Vector2 mousePosGame, Vector2 mousePosGameUi, Vector2 mousePosUi)
     {
-        if (isDisposed) return;
+        if (isDisposed || !IsVisible) return;
 
         SyncSize();
         UpdateCapture();
@@ -254,10 +330,23 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// drawing in <c>OnDrawUI</c> would put the interface past them. Running the Skia pass inside the
     /// texture's render target is safe because <c>RlglStateGuard</c> restores whichever framebuffer was
     /// bound.
+    /// <para>
+    /// A surface with no content skips both steps rather than rasterizing an empty tree and blitting the
+    /// result. The texture has already been cleared by the time this runs, so what composites is a
+    /// transparent surface rather than the last frame the content did draw. <see cref="Hide"/> is the
+    /// cheaper way to put a surface away - it costs nothing at all rather than a clear and a composite -
+    /// but this keeps an emptied surface honest either way.
+    /// </para>
+    /// <para>
+    /// The dispatcher is pumped from here, so only surfaces that are shown and have content pump it.
+    /// Surfaces share one dispatcher and one render tick, so any one of them drawing keeps Avalonia
+    /// running for all of them - but hide or empty every surface at once and Avalonia's timers and
+    /// animations stop advancing until one comes back.
+    /// </para>
     /// </remarks>
     private void OnPlacementDraw(ScreenInfo info, ScreenTexture texture)
     {
-        if (isDisposed) return;
+        if (isDisposed || content is null) return;
 
         RenderAvalonia();
         Present(new Rectangle(0, 0, texture.Width, texture.Height));
