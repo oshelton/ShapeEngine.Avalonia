@@ -27,8 +27,9 @@ public sealed class ExamplesFpsDisplay
     /// registers the collection that supplies it, so reading the regular weight straight out of that same
     /// package is what keeps the one piece of text raylib draws matching the Avalonia content over it.
     /// <para>
-    /// Inter is proportional where the readout used to be monospace, which would let the rate jitter as
-    /// its digits change width - <see cref="WidthTemplate"/> is what holds the badge steady instead.
+    /// Inter is proportional where the readout used to be monospace, so the label changes width as its
+    /// digits do. It is centred in the sidebar column, which splits that change evenly across both ends
+    /// rather than letting one edge walk.
     /// </para>
     /// </remarks>
     private const string FontAssetUri = AvaloniaHost.InterRegular;
@@ -46,23 +47,10 @@ public sealed class ExamplesFpsDisplay
     /// <summary>Text height, as a fraction of the window's shorter side.</summary>
     private const float FontSizeFraction = 0.026f;
 
-    /// <summary>Gap between the badge and the foot of the sidebar, as a fraction of the window's shorter
-    /// side.</summary>
+    /// <summary>Gap between the readout and the foot of the sidebar, as a fraction of the window's
+    /// shorter side.</summary>
     private const float MarginFraction = 0.014f;
 
-    /// <summary>Space kept for the number, so the badge doesn't resize as the rate crosses 10 or 100.</summary>
-    /// <remarks>
-    /// Only a floor: a four digit rate widens the badge rather than overflowing it. The label is drawn
-    /// right aligned within the badge, so the reserved space absorbs the change on the left and "FPS"
-    /// itself stays put.
-    /// </remarks>
-    private const string WidthTemplate = "000 FPS";
-
-    private const float BadgeRoundness = 0.4f;
-    private const int BadgeSegments = 6;
-
-    private static readonly ColorRgba BackgroundColorRgba = new(24, 24, 34, 220);
-    private static readonly ColorRgba BorderColorRgba = new(90, 90, 130, 255);
     private static readonly ColorRgba TextColorRgba = new(235, 235, 245, 255);
 
     private TextFont? textFont;
@@ -109,12 +97,6 @@ public sealed class ExamplesFpsDisplay
         text.FontSize = reference * FontSizeFraction;
 
         var label = $"{fps} FPS";
-        var labelSize = text.FontDimensions.GetTextSize(label);
-        var reserved = Math.Max(labelSize.Width, text.FontDimensions.GetTextSize(WidthTemplate).Width);
-
-        var paddingX = labelSize.Height * 0.55f;
-        var paddingY = labelSize.Height * 0.3f;
-        var badgeSize = new Size(reserved + paddingX * 2f, labelSize.Height + paddingY * 2f);
 
         // Sat at the foot of the navigation sidebar's column rather than in a corner of the window, so it
         // reads as part of the same chrome as the nav items above it. Drawn over the sidebar rather than
@@ -126,15 +108,10 @@ public sealed class ExamplesFpsDisplay
             ui.Area.Width * ExamplesLayout.SidebarWidth,
             ui.Area.Height * ExamplesLayout.ContentHeight);
 
-        var badge = new SeRect(
+        text.DrawWord(
+            label,
             new Vector2(sidebar.Center.X, sidebar.Bottom - reference * MarginFraction),
-            badgeSize,
             AnchorPoint.BottomCenter);
-
-        badge.DrawRounded(BackgroundColorRgba, BadgeRoundness, BadgeSegments);
-        badge.DrawLinesRounded(Math.Max(1f, reference * 0.0015f), BorderColorRgba, BadgeRoundness, BadgeSegments);
-
-        text.DrawWord(label, new Vector2(badge.Right - paddingX, badge.Center.Y), AnchorPoint.Right);
     }
 
     /// <remarks>
