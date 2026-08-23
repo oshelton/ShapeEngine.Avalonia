@@ -171,6 +171,36 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// <summary>The area of the window the UI is drawn into, in screen coordinates.</summary>
     public SeRect DestinationRect => placement.GetDestinationRect();
 
+    /// <summary>Maps a point in Avalonia's client space to screen coordinates.</summary>
+    /// <remarks>
+    /// The way back out of the interface, and the mirror of what the pointer goes through coming in - so
+    /// the engine can draw over a control at the size and place it actually appears, through the display
+    /// scale and wherever the anchor put the surface.
+    /// </remarks>
+    public Vector2 ToScreen(Point client)
+    {
+        var destination = DestinationRect;
+
+        // Client space is device independent and the texture is in physical pixels, so the render scale
+        // goes on first; the texture then composites into its destination rectangle, which is the rest.
+        var scale = (float)impl.RenderScaling;
+        var x = (float)client.X * scale * (placement.Width > 0 ? destination.Width / placement.Width : 1f);
+        var y = (float)client.Y * scale * (placement.Height > 0 ? destination.Height / placement.Height : 1f);
+
+        return destination.TopLeft + new Vector2(x, y);
+    }
+
+    /// <summary>Maps a rectangle in Avalonia's client space to screen coordinates.</summary>
+    /// <remarks>Both corners are mapped, so a <see cref="ScaleContent"/> surface reports the size a
+    /// control is drawn at rather than the size it was laid out at.</remarks>
+    public SeRect ToScreen(Rect client)
+    {
+        var topLeft = ToScreen(client.TopLeft);
+        var bottomRight = ToScreen(client.BottomRight);
+
+        return new SeRect(topLeft.X, topLeft.Y, bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y);
+    }
+
     /// <summary>Whether the surface is currently on the game. Surfaces start shown.</summary>
     /// <seealso cref="Show"/>
     /// <seealso cref="Hide"/>

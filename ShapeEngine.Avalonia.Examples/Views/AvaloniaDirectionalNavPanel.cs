@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Declarative;
+using Avalonia.VisualTree;
 
 namespace AvaloniaExamples.Views;
 
@@ -29,6 +30,8 @@ public sealed class AvaloniaDirectionalNavPanel : ViewBase
 
     private readonly Button[] buttons = new Button[Columns * Rows];
 
+    private Button? focusedButton;
+
     private TextBlock navText = null!;
     private TextBlock statusText = null!;
 
@@ -47,11 +50,35 @@ public sealed class AvaloniaDirectionalNavPanel : ViewBase
     /// would establish it. The scene calls this on every show: the content stays attached for the scene's
     /// lifetime, so <c>AttachedToVisualTree</c> fires once and would leave later visits unfocused.
     /// <para>
-    /// Directional rather than the default, because focus taken without a navigation method gets :focus
-    /// but not the :focus-visible the theme draws the focus ring from.
+    /// Directional rather than the default, so the starting focus is the same kind the arrow keys go on
+    /// to produce - it sets :focus-visible where an unspecified method would only set :focus.
     /// </para>
     /// </remarks>
     public void FocusDefault() => buttons[0].Focus(NavigationMethod.Directional);
+
+    /// <summary>The focused button's shape in the surface's client space, or null when focus is elsewhere.
+    /// The scene maps it to the screen and glows around it - see <see cref="ExamplesFocusRing"/>.</summary>
+    /// <remarks>
+    /// Both corners are translated rather than the position alone, because the surface scales this panel
+    /// to fit: the bounds a button reports are the ones it was laid out at, not the ones it is drawn at.
+    /// The radius comes along so the glow can follow the button's corners rather than round at some
+    /// radius of its own.
+    /// </remarks>
+    public (Rect Bounds, double CornerRadius)? FocusedButton
+    {
+        get
+        {
+            if (focusedButton is not { IsFocused: true } button) return null;
+            if (TopLevel.GetTopLevel(button) is not { } root) return null;
+
+            var size = button.Bounds.Size;
+
+            if (button.TranslatePoint(default, root) is not { } topLeft) return null;
+            if (button.TranslatePoint(new Point(size.Width, size.Height), root) is not { } bottomRight) return null;
+
+            return (new Rect(topLeft, bottomRight), CornerRadiusOf(button));
+        }
+    }
 
     protected override object Build()
         => ExampleControls.Panel()
@@ -119,10 +146,22 @@ public sealed class AvaloniaDirectionalNavPanel : ViewBase
             .HorizontalAlignment(HorizontalAlignment.Stretch)
             .HorizontalContentAlignment(HorizontalAlignment.Center);
 
+        // The theme's ring is dropped in favour of the animated one the scene draws around whichever
+        // button this records - two rings around one button is one too many. ShadUI sets the adorner
+        // through a style, which a local value like this overrides.
+        button.FocusAdorner = null;
+
         button.GotFocus += (_, _) =>
         {
+            focusedButton = button;
             focused = name;
+
             UpdateNavText();
+        };
+
+        button.LostFocus += (_, _) =>
+        {
+            if (ReferenceEquals(focusedButton, button)) focusedButton = null;
         };
 
         button.Click += (_, _) =>
@@ -132,6 +171,19 @@ public sealed class AvaloniaDirectionalNavPanel : ViewBase
         };
 
         return button;
+    }
+
+    /// <summary>The radius the button's corners are actually drawn with.</summary>
+    /// <remarks>
+    /// ShadUI can round the border inside the template rather than the button itself, in which case the
+    /// button reports no radius at all - so the template's border is where the number comes from when the
+    /// control has none of its own.
+    /// </remarks>
+    private static double CornerRadiusOf(Button button)
+    {
+        if (button.CornerRadius.TopLeft > 0) return button.CornerRadius.TopLeft;
+
+        return button.GetVisualDescendants().OfType<Border>().FirstOrDefault()?.CornerRadius.TopLeft ?? 0;
     }
 
     /// <summary>Wraps each row horizontally, by naming the target instead of leaving it to the strategy.</summary>

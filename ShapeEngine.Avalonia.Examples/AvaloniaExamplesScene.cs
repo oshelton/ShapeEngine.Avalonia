@@ -46,18 +46,24 @@ public sealed class AvaloniaExamplesScene : Scene
     /// For work that has to stop while the view is away: hiding a surface takes care of the surface
     /// itself, but not of anything hanging off its screen texture.
     /// </param>
+    /// <param name="drawUi">
+    /// Drawn by the engine while this view is the one showing, in the UI pass - which runs after every
+    /// surface has composited, so this lands over the view's own panels rather than under them.
+    /// </param>
     private sealed class ExampleView(
         string label,
         AvaloniaSurface[] panes,
         Action<float> update,
         Action? unload = null,
-        Action<bool>? activate = null)
+        Action<bool>? activate = null,
+        Action<ScreenInfo>? drawUi = null)
     {
         public string Label { get; } = label;
         public AvaloniaSurface[] Panes { get; } = panes;
         public Action<float> Update { get; } = update;
         public Action? Unload { get; } = unload;
         public Action<bool>? Activate { get; } = activate;
+        public Action<ScreenInfo>? DrawUi { get; } = drawUi;
     }
 
     private static readonly (string Title, string Description, float Left, float Width, Func<ShapeShader?> Load, Action<ShapeShader, float, float, int, int> Update)[] ShaderDefs =
@@ -137,6 +143,9 @@ public sealed class AvaloniaExamplesScene : Scene
             new Circle(position, radius).Draw(color, 0.9f);
         }
     }
+
+    /// <summary>Draws whatever the current view puts over its own surfaces.</summary>
+    protected override void OnDrawUI(ScreenInfo ui) => currentView?.DrawUi?.Invoke(ui);
 
     /// <summary>Shows the given view's pane(s) and hides every other view's.</summary>
     /// <remarks>
@@ -394,17 +403,40 @@ public sealed class AvaloniaExamplesScene : Scene
         surface.GamepadNavigation = GamepadNavigationMode.Directional;
         surface.KeyboardDrivenNavigation = true;
 
+        // Drawn by the engine over the surface, in place of the ring the theme would put inside it. It
+        // follows plain focus rather than keyboard focus, so a click glows the button it lands on too.
+        var ring = new ExamplesFocusRing();
+
         return new ExampleView(
             "Directional Nav",
             [surface],
-            _ => panel.SetStatus(Status(surface)),
+            dt =>
+            {
+                panel.SetStatus(Status(surface));
+
+                if (panel.FocusedButton is not { } focus)
+                {
+                    ring.Update(dt, null);
+                    return;
+                }
+
+                // The corner radius is scaled by hand because it is a length rather than a point: the
+                // panel is laid out small and scaled up to the surface, so the radius the button reports
+                // is in the same shrunken units its bounds were.
+                var bounds = surface.ToScreen(focus.Bounds);
+                var scale = focus.Bounds.Width > 0 ? bounds.Width / (float)focus.Bounds.Width : 1f;
+
+                ring.Update(dt, bounds, (float)focus.CornerRadius * scale);
+            },
             // The panel's content stays attached for the scene's lifetime, so it cannot focus itself off
             // attachment - without this, arriving by the sidebar would leave the grid unfocused and the
             // keys the view is about doing nothing.
             activate: showing =>
             {
                 if (showing) panel.FocusDefault();
-            });
+                else ring.Reset();
+            },
+            drawUi: ring.Draw);
     }
 
     private void UpdateCircles(float dt, SeRect bounds)
