@@ -1,8 +1,6 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Markup.Declarative;
-using Avalonia.Media;
 using AvSlider = Avalonia.Controls.Slider;
 
 namespace AvaloniaExamples.Views;
@@ -43,63 +41,39 @@ public sealed class AvaloniaShaderPanel : ViewBase
     public float Strength => (float)strengthSlider.Value;
 
     protected override object Build()
-        => new Border()
+        => ExampleControls.Panel()
             .Width(340)
-            .Background(new SolidColorBrush(Color.FromArgb(220, 24, 24, 34)))
-            .BorderBrush(new SolidColorBrush(Color.FromArgb(255, 90, 90, 130)))
-            .BorderThickness(new Thickness(1))
-            .CornerRadius(new CornerRadius(12))
-            .Padding(new Thickness(18))
             .VerticalAlignment(VerticalAlignment.Top)
             .Child(
                 new StackPanel()
                     .Spacing(10)
                     .Children(
-                        new TextBlock()
-                            .Text(title)
-                            .FontSize(22)
-                            .FontWeight(FontWeight.SemiBold)
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.White),
-                        new TextBlock()
-                            .Text(description)
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.DarkGray),
+                        ExampleControls.Title(title),
+                        ExampleControls.Body(description),
+                        // Single words, as ShadUI's own preview uses: the label sits beside the switch
+                        // rather than under it, and a 1.1 render transform paints the control wider than
+                        // it measures, so a phrase overhangs the panel. The status line carries the detail.
                         new ToggleSwitch()
                             .Ref(out enabledToggle)
                             .Content("Shader")
-                            .OffContent("Off - clean render")
-                            .OnContent("On - post-processing active")
+                            .OffContent("Off")
+                            .OnContent("On")
                             .IsChecked(true),
-                        new TextBlock()
-                            .Text("Strength")
-                            .FontSize(12)
-                            .Foreground(Brushes.DarkGray),
+                        ExampleControls.Label("Strength"),
                         new AvSlider()
                             .Ref(out strengthSlider)
                             .Minimum(0)
                             .Maximum(1)
                             .Value(0.7),
-                        new TextBlock()
-                            .Text("Fine detail like this line shows the effect most clearly")
-                            .FontSize(12)
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.Gainsboro),
-                        new Border()
-                            .Height(2)
-                            .Background(new SolidColorBrush(Color.FromArgb(255, 120, 220, 255))),
+                        ExampleControls.Label("Fine detail like this line shows the effect most clearly"),
                         new Button()
+                            .Classes(ExamplesTheme.PrimaryButton)
                             .Content("Still fully interactive")
                             .HorizontalAlignment(HorizontalAlignment.Stretch)
                             .HorizontalContentAlignment(HorizontalAlignment.Center),
                         new TextBox()
                             .PlaceholderText("type here - input is unaffected"),
-                        // Not wrapping, so the per-frame status can't change the panel's height and
-                        // rescale it through the surface's Viewbox.
-                        new TextBlock()
-                            .Ref(out statusText)
-                            .TextWrapping(TextWrapping.NoWrap)
-                            .Foreground(Brushes.Gainsboro)));
+                        ExampleControls.Status().Ref(out statusText)));
 
     /// <summary>Shows the surface's live state, updated by the scene each frame.</summary>
     public void SetStatus(string status) => statusText.Text = status;

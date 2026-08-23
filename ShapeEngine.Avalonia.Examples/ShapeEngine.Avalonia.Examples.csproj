@@ -16,16 +16,18 @@
   <ItemGroup>
     <PackageReference Include="DaveGreen.ShapeEngine" Version="5.3.0" />
     <PackageReference Include="Avalonia.Markup.Declarative" Version="12.1.0" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <!-- The example UI is themed entirely by ShadUI - https://github.com/accntech/shad-ui - which
+         restyles the stock Avalonia controls and brings its own SimpleTheme base, so no Fluent theme is
+         referenced. -->
+    <PackageReference Include="ShadUI" Version="0.2.4" />
+    <!-- ShadUI asks for these three at 12.1.0, which would leave them a patch behind the 12.1.1 core
+         ShapeEngine.Avalonia pins. Themes.Simple is the one that matters: it templates the control root
+         the surfaces are built on, so it is kept in step with the Avalonia it is templating. -->
+    <PackageReference Include="Avalonia.Themes.Simple" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.1" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- The font ShapeEngine's own examples default to, so the Avalonia UI matches the game text. -->
-    <AvaloniaResource Include="Resources/Fonts/JetBrainsMono.ttf" />
-    <!-- The same file again, for the FPS readout: raylib loads it from the assembly's own resources
-         rather than through Avalonia's asset loader, which only sees AvaloniaResource items. -->
-    <EmbeddedResource Include="Resources/Fonts/JetBrainsMono.ttf" LogicalName="JetBrainsMono.ttf" />
-  </ItemGroup>
 
 </Project>

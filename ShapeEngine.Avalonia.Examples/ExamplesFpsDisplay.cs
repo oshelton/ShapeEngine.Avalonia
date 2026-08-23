@@ -1,4 +1,5 @@
 using System.Numerics;
+using Avalonia.Platform;
 using Raylib_cs;
 using ShapeEngine.Color;
 using ShapeEngine.Content;
@@ -17,15 +18,17 @@ namespace AvaloniaExamples;
 /// </remarks>
 public sealed class ExamplesFpsDisplay
 {
-    /// <summary>Font the readout is drawn with, embedded so no file has to sit next to the executable.</summary>
+    /// <summary>Font the readout is drawn with.</summary>
     /// <remarks>
-    /// The same JetBrains Mono the Avalonia side uses (see <see cref="AvaloniaHost.ShapeEngineFont"/>), so
-    /// the one piece of text raylib draws matches the rest. Reached through
-    /// <see cref="System.Reflection.Assembly.GetManifestResourceStream(string)"/> rather than Avalonia's
-    /// asset loader, hence the separate <c>EmbeddedResource</c> item alongside the <c>AvaloniaResource</c>
-    /// one in the csproj - the same file, embedded twice, once for each loader.
+    /// The same face the interface is set in: the themes ask for Inter, and <see cref="AvaloniaHost"/>
+    /// registers the collection that supplies it, so reading the regular weight straight out of that same
+    /// package is what keeps the one piece of text raylib draws matching the Avalonia content over it.
+    /// <para>
+    /// Inter is proportional where the readout used to be monospace, which would let the rate jitter as
+    /// its digits change width - <see cref="WidthTemplate"/> is what holds the badge steady instead.
+    /// </para>
     /// </remarks>
-    private const string FontResourceName = "JetBrainsMono.ttf";
+    private const string FontAssetUri = AvaloniaHost.InterRegular;
 
     /// <summary>Size the glyph atlas is rasterized at.</summary>
     /// <remarks>Comfortably above the largest size the readout is ever drawn at, so the trilinear filter
@@ -137,10 +140,15 @@ public sealed class ExamplesFpsDisplay
         elapsed = 0f;
     }
 
+    /// <remarks>
+    /// Through Avalonia.s asset loader, so this only works once Avalonia has been set up - which is why
+    /// <see cref="AvaloniaExamplesGame"/> initializes the host before loading the readout.
+    /// </remarks>
     private static byte[]? ReadFontData()
     {
-        using var stream = typeof(ExamplesFpsDisplay).Assembly.GetManifestResourceStream(FontResourceName);
-        if (stream is null) return null;
+        if (!AssetLoader.Exists(new Uri(FontAssetUri))) return null;
+
+        using var stream = AssetLoader.Open(new Uri(FontAssetUri));
 
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);

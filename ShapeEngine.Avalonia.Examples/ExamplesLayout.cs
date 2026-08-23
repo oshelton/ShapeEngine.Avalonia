@@ -9,10 +9,10 @@ public static class ExamplesLayout
     /// <summary>Fraction of the window height the nav bar occupies.</summary>
     /// <remarks>
     /// Sized for the smallest window rather than the nicest looking one. The nav bar is laid out at its
-    /// real size, and its row of buttons has a floor of roughly 39 device independent pixels that no
-    /// amount of restyling gets under - Fluent's own metrics for a RadioButton. At the 1024x640 minimum
-    /// this fraction has to cover that floor <em>after</em> <c>HighDPI</c> has divided the strip by the
-    /// display scale, which is what makes 0.09 - fine at 100% - clip the bar in half on a 175% display.
+    /// real size, so its row of buttons is a floor rather than a preference: whatever the theme measures
+    /// a RadioButton and the panel around it at. At the 1024x640 minimum this fraction has to cover that
+    /// floor <em>after</em> <c>HighDPI</c> has divided the strip by the display scale, which is what makes
+    /// 0.09 - fine at 100% - clip the bar in half on a 175% display.
     /// <para>
     /// The strip draws nothing itself, so the headroom this leaves at larger window sizes costs only
     /// content band height, not a visible gap.

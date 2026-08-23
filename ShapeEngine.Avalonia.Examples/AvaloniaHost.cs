@@ -1,5 +1,4 @@
 using Avalonia;
-using Avalonia.Media;
 using ShapeEngine.Avalonia;
 
 namespace AvaloniaExamples;
@@ -11,21 +10,12 @@ namespace AvaloniaExamples;
 /// </remarks>
 public static class AvaloniaHost
 {
-    /// <summary>JetBrains Mono - the font ShapeEngine's own examples use for their game text.</summary>
+    /// <summary>The regular weight of the interface font, for anything outside Avalonia that wants it.</summary>
     /// <remarks>
-    /// Embedded through the <c>AvaloniaResource</c> item in the csproj, so the <c>avares</c> URI resolves
-    /// without a font file sitting next to the executable.
+    /// <see cref="ExamplesFpsDisplay"/> loads this and hands the bytes to raylib, so the one piece of text
+    /// the game draws for itself is set in the same face as the interface over it.
     /// </remarks>
-    public const string ShapeEngineFont =
-        "avares://ShapeEngine.Avalonia.Examples/Resources/Fonts/JetBrainsMono.ttf#JetBrains Mono";
-
-    /// <summary>Inter, from the <c>Avalonia.Fonts.Inter</c> package, kept only as a fallback.</summary>
-    /// <remarks>
-    /// Referenced by URI rather than through <c>WithInterFont()</c> on purpose: that helper also rewrites
-    /// the Fluent theme's <c>ContentControlThemeFontFamily</c> into a composite that puts Inter ahead of
-    /// the default family, which would quietly win over everything set here.
-    /// </remarks>
-    private const string FallbackFont = "avares://Avalonia.Fonts.Inter/Assets#Inter";
+    public const string InterRegular = "avares://Avalonia.Fonts.Inter/Assets/Inter-Regular.ttf";
 
     private static bool initialized;
 
@@ -36,13 +26,9 @@ public static class AvaloniaHost
 
         AppBuilder.Configure<AvaloniaExamplesApp>()
             .UseShapeEngine()
-            // DefaultFamilyName is what the `$Default` family every control starts out with resolves to, so
-            // this alone re-fonts the whole tree. Inter only fills in codepoints JetBrains Mono lacks.
-            .With(new FontManagerOptions
-            {
-                DefaultFamilyName = ShapeEngineFont,
-                FontFallbacks = [new FontFallback { FontFamily = new FontFamily(FallbackFont) }]
-            })
+            // Registers the font collection the themes already name: they set a family of "Inter, then the
+            // platform default" on every control, and without this the first half never resolves.
+            .WithInterFont()
             .SetupWithoutStarting();
     }
 }

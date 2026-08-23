@@ -167,16 +167,10 @@ public sealed class AvaloniaExamplesScene : Scene
         {
             var view = views[i];
 
-            // Left at its natural 32 DIP height. Neither clearing MinHeight nor setting an explicit Height
-            // shrinks one of these usefully: Fluent places the marker ellipse from the template, tuned to
-            // that 32, so a shorter button slices the bottom off the marker rather than recentering it.
             buttons[i] = new RadioButton()
                 .GroupName("exampleView")
                 .Content(view.Label)
-                .FontSize(12)
-                .Padding(new Thickness(6, 0, 0, 0))
                 .VerticalAlignment(VerticalAlignment.Center)
-                .VerticalContentAlignment(VerticalAlignment.Center)
                 .IsChecked(ReferenceEquals(view, currentView))
                 .OnIsCheckedChanged(e =>
                 {
@@ -185,13 +179,7 @@ public sealed class AvaloniaExamplesScene : Scene
                 });
         }
 
-        var content = new Border()
-            .Background(new SolidColorBrush(Color.FromArgb(230, 20, 20, 28)))
-            .BorderBrush(new SolidColorBrush(Color.FromArgb(255, 90, 90, 130)))
-            .BorderThickness(new Thickness(1))
-            .CornerRadius(new CornerRadius(8))
-            .Margin(new Thickness(8, 2))
-            .Padding(new Thickness(10, 2))
+        var content = ExampleControls.Panel()
             .HorizontalAlignment(HorizontalAlignment.Center)
             .VerticalAlignment(VerticalAlignment.Center)
             .Child(
@@ -208,10 +196,10 @@ public sealed class AvaloniaExamplesScene : Scene
     /// docked to each side, and a full panel filling whatever space is left in the centre.</summary>
     private ExampleView BuildFullWindowView()
     {
-        var top = BuildDockStrip("Top", "DockPanel.Dock = Top", Color.FromRgb(255, 140, 200)).Height(44);
-        var bottom = BuildDockStrip("Bottom", "DockPanel.Dock = Bottom", Color.FromRgb(160, 255, 170)).Height(44);
-        var left = BuildDockStrip("Left", "DockPanel.Dock = Left", Color.FromRgb(120, 200, 255)).Width(130);
-        var right = BuildDockStrip("Right", "DockPanel.Dock = Right", Color.FromRgb(255, 190, 120)).Width(130);
+        var top = BuildDockStrip("Top", "DockPanel.Dock = Top");
+        var bottom = BuildDockStrip("Bottom", "DockPanel.Dock = Bottom");
+        var left = BuildDockStrip("Left", "DockPanel.Dock = Left").Width(150);
+        var right = BuildDockStrip("Right", "DockPanel.Dock = Right").Width(150);
 
         DockPanel.SetDock(top, Dock.Top);
         DockPanel.SetDock(bottom, Dock.Bottom);
@@ -235,28 +223,14 @@ public sealed class AvaloniaExamplesScene : Scene
     }
 
     /// <summary>A small labeled strip for one side of the dock, styled the same regardless of which.</summary>
-    private static Border BuildDockStrip(string label, string description, Color accent)
-        => new Border()
-            .Background(new SolidColorBrush(Color.FromArgb(200, 24, 24, 34)))
-            .BorderBrush(new SolidColorBrush(accent))
-            .BorderThickness(new Thickness(1))
-            .CornerRadius(new CornerRadius(8))
-            .Padding(new Thickness(10))
-            .Margin(new Thickness(3))
+    private static Control BuildDockStrip(string label, string description)
+        => ExampleControls.Panel()
             .Child(
                 new StackPanel()
                     .Spacing(2)
                     .Children(
-                        new TextBlock()
-                            .Text(label)
-                            .FontSize(13)
-                            .FontWeight(FontWeight.SemiBold)
-                            .Foreground(Brushes.White),
-                        new TextBlock()
-                            .Text(description)
-                            .FontSize(10)
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.DarkGray)));
+                        new TextBlock().Text(label),
+                        ExampleControls.Label(description)));
 
     private ExampleView BuildGalleryView()
     {

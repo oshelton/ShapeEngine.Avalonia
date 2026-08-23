@@ -42,6 +42,10 @@ public sealed class AvaloniaDragDropSourcePanel : ViewBase
     }
 
     /// <summary>A small coloured, labeled control that starts a drag carrying its own shape as data.</summary>
+    /// <remarks>
+    /// The one colour the views still set for themselves, and not chrome: it is the shape's identity, and
+    /// has to match what ShapeEngine paints it with in the drop target.
+    /// </remarks>
     private Border BuildChip(AvaloniaDragDropShape shape)
     {
         var (avaloniaColor, _) = AvaloniaDragDropChip.Info(shape);
@@ -50,12 +54,9 @@ public sealed class AvaloniaDragDropSourcePanel : ViewBase
             .Width(90)
             .Height(60)
             .Background(new SolidColorBrush(avaloniaColor))
-            .CornerRadius(new CornerRadius(8))
             .Child(
                 new TextBlock()
                     .Text(shape.ToString())
-                    .FontSize(13)
-                    .FontWeight(FontWeight.SemiBold)
                     .HorizontalAlignment(HorizontalAlignment.Center)
                     .VerticalAlignment(VerticalAlignment.Center)
                     .Foreground(Brushes.Black));

@@ -69,7 +69,7 @@ public static class AvaloniaGlowShader
                 float weight = exp(-2.5 * t);
 
                 // Thresholded per tap rather than once over the blurred result: blurring first drags the
-                // card's dark fill into the halo and muddies it.
+                // panel's dark fill into the halo and muddies it.
                 float luma = dot(s.rgb, vec3(0.299, 0.587, 0.114));
                 float highlight = smoothstep(0.25, 0.9, luma);
 

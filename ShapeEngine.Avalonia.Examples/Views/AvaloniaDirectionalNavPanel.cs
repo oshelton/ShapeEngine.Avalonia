@@ -4,7 +4,6 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Declarative;
-using Avalonia.Media;
 
 namespace AvaloniaExamples.Views;
 
@@ -53,41 +52,19 @@ public sealed class AvaloniaDirectionalNavPanel : ViewBase
     }
 
     protected override object Build()
-        => new Border()
+        => ExampleControls.Panel()
             .Width(560)
-            .Background(new SolidColorBrush(Color.FromArgb(220, 24, 24, 34)))
-            .BorderBrush(new SolidColorBrush(Color.FromArgb(255, 90, 90, 130)))
-            .BorderThickness(new Thickness(1))
-            .CornerRadius(new CornerRadius(12))
-            .Padding(new Thickness(18))
             .VerticalAlignment(VerticalAlignment.Top)
             .Child(
                 new StackPanel()
                     .Spacing(12)
                     .Children(
-                        new TextBlock()
-                            .Text("Directional navigation")
-                            .FontSize(22)
-                            .FontWeight(FontWeight.SemiBold)
-                            .Foreground(Brushes.White),
-                        new TextBlock()
-                            .Text("Arrow keys or a gamepad D-pad move focus by direction. Tab runs down each column instead - the two disagree on purpose.")
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.DarkGray),
+                        ExampleControls.Title("Directional navigation"),
+                        ExampleControls.Body("Arrow keys or a gamepad D-pad move focus by direction. Tab runs down each column instead - the two disagree on purpose."),
                         BuildGrid(),
-                        new TextBlock()
-                            .Text("The right column wraps back to the left: an explicit XYFocus target, which overrides the automatic choice.")
-                            .TextWrapping(TextWrapping.Wrap)
-                            .FontSize(11)
-                            .Foreground(Brushes.DarkGray),
-                        new TextBlock()
-                            .Ref(out navText)
-                            .TextWrapping(TextWrapping.NoWrap)
-                            .Foreground(Brushes.Gainsboro),
-                        new TextBlock()
-                            .Ref(out statusText)
-                            .TextWrapping(TextWrapping.NoWrap)
-                            .Foreground(Brushes.Gainsboro)));
+                        ExampleControls.Label("The right column wraps back to the left: an explicit XYFocus target, which overrides the automatic choice."),
+                        ExampleControls.Status().Ref(out navText),
+                        ExampleControls.Status().Ref(out statusText)));
 
     /// <summary>Shows the surface's live state, updated by the scene each frame.</summary>
     public void SetStatus(string status) => statusText.Text = status;
@@ -131,10 +108,12 @@ public sealed class AvaloniaDirectionalNavPanel : ViewBase
     {
         var name = $"R{row + 1}C{column + 1}";
 
+        // Classed rather than bare: an unclassed button is sized by its content, so a grid of them comes
+        // out ragged. Every ShadUI button class fixes the height.
         var button = new Button()
+            .Classes(ExamplesTheme.OutlineButton)
+            .Margin(new Thickness(ExamplesTheme.PanelSpacing))
             .Content(name)
-            .Margin(new Thickness(4))
-            .Padding(new Thickness(10, 14))
             .HorizontalAlignment(HorizontalAlignment.Stretch)
             .HorizontalContentAlignment(HorizontalAlignment.Center);
 

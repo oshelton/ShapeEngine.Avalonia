@@ -27,6 +27,10 @@ public sealed class AvaloniaExamplesGame(
     /// </remarks>
     protected override void BeginRun()
     {
+        // Before the readout, which takes its font from an Avalonia asset and so needs the asset loader.
+        // The scene calls this too; it only does the work once.
+        AvaloniaHost.EnsureInitialized();
+
         fpsDisplay.Load();
         GoToScene(new AvaloniaExamplesScene());
     }

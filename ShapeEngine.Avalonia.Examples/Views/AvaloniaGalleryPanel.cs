@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Declarative;
 using Avalonia.Media;
 using Avalonia.Styling;
+using ShadUI;
 using ShapeEngine.Avalonia.Controls;
 using ShapeEngine.Color;
 using ShapeEngine.Core.Structs;
@@ -56,8 +57,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
         ("Amber", new ColorRgba(255, 190, 120, 255))
     ];
 
-    private static readonly IBrush HighlightBrush = new SolidColorBrush(Color.FromArgb(90, 255, 255, 255));
-
     private static readonly string[] RotatingMessages =
     [
         "Cross-fading content",
@@ -68,6 +67,14 @@ public sealed class AvaloniaGalleryPanel : ViewBase
 
     /// <summary>Fixed across all tabs, so switching tabs doesn't resize the panel.</summary>
     private const float TabContentHeight = 420f;
+
+    /// <summary>Size a ShapeEngine glyph is drawn at when it is the whole of a control's content.</summary>
+    private const double GlyphSize = 28;
+
+    /// <summary>Size it is drawn at in a button's icon slot, matching that slot's Viewbox width.</summary>
+    /// <remarks>The Viewbox scales it to the row, which the direct view follows correctly because it
+    /// draws through Skia's accumulated transform rather than its own bounds alone.</remarks>
+    private const double IconSlotSize = 24;
 
     private readonly ObservableCollection<string> log = [];
     private readonly List<Button> iconButtons = [];
@@ -119,35 +126,17 @@ public sealed class AvaloniaGalleryPanel : ViewBase
     private bool ShowOrbitRings => orbitRingsToggle.IsChecked == true;
 
     protected override object Build()
-        => new Border()
+        => ExampleControls.Panel()
             .Width(680)
-            .Background(new SolidColorBrush(Color.FromArgb(220, 24, 24, 34)))
-            .BorderBrush(new SolidColorBrush(Color.FromArgb(255, 90, 90, 130)))
-            .BorderThickness(new Thickness(1))
-            .CornerRadius(new CornerRadius(12))
-            .Padding(new Thickness(18))
             .VerticalAlignment(VerticalAlignment.Top)
             .Child(
                 new StackPanel()
                     .Spacing(10)
                     .Children(
-                        new TextBlock()
-                            .Text("Gallery")
-                            .FontSize(22)
-                            .FontWeight(FontWeight.SemiBold)
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.White),
-                        new TextBlock()
-                            .Text("Native controls, buttons with ShapeEngine icons, ShapeEngine content used as plain images, and Avalonia's own animations - all on one surface.")
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.DarkGray),
+                        ExampleControls.Title("Gallery"),
+                        ExampleControls.Body("Native controls, buttons with ShapeEngine icons, ShapeEngine content used as plain images, and Avalonia's own animations - all on one surface."),
                         BuildTabs(),
-                        // Not wrapping, so the per-frame status can't change the panel's height and
-                        // rescale it through the surface's Viewbox.
-                        new TextBlock()
-                            .Ref(out statusText)
-                            .TextWrapping(TextWrapping.NoWrap)
-                            .Foreground(Brushes.Gainsboro)));
+                        ExampleControls.Status().Ref(out statusText)));
 
     /// <summary>Advances the gallery's animated and direct content. Called by the scene each frame.</summary>
     public void Advance(float deltaTime) => elapsed += deltaTime * (float)AnimationSpeed;
@@ -178,20 +167,20 @@ public sealed class AvaloniaGalleryPanel : ViewBase
             .Children(
                 new TextBox()
                     .PlaceholderText("Notes - the game stops seeing the keyboard"),
-                new TextBlock().Text("ShapeEngine hero shape").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("ShapeEngine hero shape"),
                 new ComboBox()
                     .Ref(out gallerySeedCombo)
                     .HorizontalAlignment(HorizontalAlignment.Stretch)
                     .ItemsSource(IconShapes.Select(shape => shape.ToString()).ToArray())
                     .SelectedIndex(Array.IndexOf(IconShapes, gallerySeed)),
-                new TextBlock().Text("Accent").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("Accent"),
                 BuildAccentRow(),
                 new CheckBox()
                     .Ref(out highlightCheckBox)
                     .Content("Highlight selected icon")
                     .IsChecked(true)
                     .OnIsCheckedChanged(_ => RefreshHighlights()),
-                new TextBlock().Text("ShapeEngine animation speed").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("ShapeEngine animation speed"),
                 new AvSlider()
                     .Ref(out speedSlider)
                     .Minimum(0)
@@ -207,10 +196,7 @@ public sealed class AvaloniaGalleryPanel : ViewBase
                 new Expander()
                     .Header("About this tab")
                     .Content(
-                        new TextBlock()
-                            .Text("Every control here is a plain Avalonia control - nothing on this tab is drawn by ShapeEngine.")
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Foreground(Brushes.DarkGray)));
+                ExampleControls.Body("Every control here is a plain Avalonia control - nothing on this tab is drawn by ShapeEngine.")));
 
     private Control BuildAccentRow()
     {
@@ -257,19 +243,16 @@ public sealed class AvaloniaGalleryPanel : ViewBase
             var index = i;
             var shape = IconShapes[i];
 
+            // Into ShadUI's icon slot rather than the content: its template keeps a Viewbox ahead of the
+            // label for this, and its button classes pin Height to 36 and clip to it, so taller content
+            // loses its bottom line.
             var button = new Button()
-                .Padding(new Thickness(10))
-                .Content(
-                    new StackPanel()
-                        .Spacing(4)
-                        .Children(
-                            BuildIconGlyph(shape, index),
-                            new TextBlock()
-                                .Text(shape.ToString())
-                                .FontSize(11)
-                                .HorizontalAlignment(HorizontalAlignment.Center)
-                                .Foreground(Brushes.Gainsboro)))
+                .Classes(ExamplesTheme.OutlineButton)
+                .Margin(new Thickness(ExamplesTheme.PanelSpacing))
+                .Content(shape.ToString())
                 .OnClick(_ => SelectIcon(index));
+
+            ButtonAssist.SetIcon(button, BuildIconGlyph(shape, index, IconSlotSize));
 
             iconButtons.Add(button);
             buttons[i] = button;
@@ -278,22 +261,18 @@ public sealed class AvaloniaGalleryPanel : ViewBase
         return new StackPanel()
             .Spacing(10)
             .Children(
-                new TextBlock()
-                    .Text("Each control below carries a small ShapeEngine render, not an image asset.")
-                    .TextWrapping(TextWrapping.Wrap)
-                    .Foreground(Brushes.DarkGray),
-                new TextBlock().Text("Button - click to select").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Body("Each control below carries a small ShapeEngine render, not an image asset."),
+                ExampleControls.Label("Button - click to select"),
                 new WrapPanel().Children(buttons),
-                new TextBlock().Text("RadioButton - pick exactly one").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("RadioButton - pick exactly one"),
                 BuildRadioButtonsRow(),
-                new TextBlock().Text("ToggleButton - any number of favorites").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("ToggleButton - any number of favorites"),
                 BuildToggleButtonsRow(),
-                new TextBlock().Text("CheckBox - included in the set").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("CheckBox - included in the set"),
                 BuildCheckBoxRow(),
                 new TextBlock()
                     .Ref(out selectionText)
-                    .TextWrapping(TextWrapping.Wrap)
-                    .Foreground(Brushes.Gainsboro));
+                    .TextWrapping(TextWrapping.Wrap));
     }
 
     /// <summary>
@@ -301,10 +280,10 @@ public sealed class AvaloniaGalleryPanel : ViewBase
     /// plus a breathing halo and an orbiting highlight, so it reads as alive rather than static clip art.
     /// A direct view redraws every frame regardless, so the flourish costs nothing extra to add.
     /// </summary>
-    private Control BuildIconGlyph(IconShape shape, int index)
+    private Control BuildIconGlyph(IconShape shape, int index, double size = GlyphSize)
         => new ShapeEngineDirectView { DrawContent = bounds => DrawIconGlyph(bounds, shape, IconColors[index], index) }
-            .Width(28)
-            .Height(28);
+            .Width(size)
+            .Height(size);
 
     /// <summary>Layers a breathing halo and an orbiting highlight dot over <see cref="DrawIcon"/>'s plain shape.</summary>
     /// <param name="phaseOffset">
@@ -349,7 +328,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
 
             radios[i] = new RadioButton()
                 .GroupName("iconPick")
-                .Padding(new Thickness(10))
                 .Content(
                     new StackPanel()
                         .Spacing(4)
@@ -357,9 +335,8 @@ public sealed class AvaloniaGalleryPanel : ViewBase
                             BuildIconGlyph(shape, index),
                             new TextBlock()
                                 .Text(shape.ToString())
-                                .FontSize(11)
-                                .HorizontalAlignment(HorizontalAlignment.Center)
-                                .Foreground(Brushes.Gainsboro)))
+                                .Classes(ExamplesTheme.CaptionClass)
+                                .HorizontalAlignment(HorizontalAlignment.Center)))
                 .OnIsCheckedChanged(e =>
                 {
                     if (((RadioButton)e.Source!).IsChecked != true) return;
@@ -382,8 +359,11 @@ public sealed class AvaloniaGalleryPanel : ViewBase
             var index = i;
             var shape = IconShapes[i];
 
+            // Classed because ShadUI's bare ToggleButton theme carries no padding - it comes with the
+            // variant. Its RadioButton and CheckBox themes pad themselves, so only this row needed it.
             toggles[i] = new ToggleButton()
-                .Padding(new Thickness(10))
+                .Classes(ExamplesTheme.DefaultToggle)
+                .Margin(new Thickness(ExamplesTheme.PanelSpacing))
                 .Content(
                     new StackPanel()
                         .Spacing(4)
@@ -391,9 +371,8 @@ public sealed class AvaloniaGalleryPanel : ViewBase
                             BuildIconGlyph(shape, index),
                             new TextBlock()
                                 .Text(shape.ToString())
-                                .FontSize(11)
-                                .HorizontalAlignment(HorizontalAlignment.Center)
-                                .Foreground(Brushes.Gainsboro)))
+                                .Classes(ExamplesTheme.CaptionClass)
+                                .HorizontalAlignment(HorizontalAlignment.Center)))
                 .OnIsCheckedChanged(e => ToggleFavorite(index, ((ToggleButton)e.Source!).IsChecked == true));
         }
 
@@ -427,9 +406,8 @@ public sealed class AvaloniaGalleryPanel : ViewBase
                             BuildIconGlyph(shape, index),
                             new TextBlock()
                                 .Text(shape.ToString())
-                                .FontSize(11)
-                                .VerticalAlignment(VerticalAlignment.Center)
-                                .Foreground(Brushes.Gainsboro)))
+                                .Classes(ExamplesTheme.CaptionClass)
+                                .VerticalAlignment(VerticalAlignment.Center)))
                 .IsChecked(true)
                 .OnIsCheckedChanged(e => ToggleIncluded(index, ((CheckBox)e.Source!).IsChecked == true));
         }
@@ -455,13 +433,21 @@ public sealed class AvaloniaGalleryPanel : ViewBase
     }
 
     /// <summary>Marks the selected button, when the checkbox on the Controls tab asks for it.</summary>
+    /// <remarks>
+    /// Swapped between two classes rather than toggling one on and off: ShadUI's carry sizing as well as
+    /// colour, so a class worn only while selected would resize the button on every click. Outline and
+    /// Secondary are the same size, leaving the click changing nothing but the fill.
+    /// </remarks>
     private void RefreshHighlights()
     {
         var highlightOn = highlightCheckBox.IsChecked == true;
 
         for (var i = 0; i < iconButtons.Count; i++)
         {
-            iconButtons[i].Background = highlightOn && i == selectedIcon ? HighlightBrush : null;
+            var marked = highlightOn && i == selectedIcon;
+
+            iconButtons[i].Classes.Set(ExamplesTheme.OutlineButton, !marked);
+            iconButtons[i].Classes.Set(ExamplesTheme.SecondaryButton, marked);
         }
     }
 
@@ -491,20 +477,18 @@ public sealed class AvaloniaGalleryPanel : ViewBase
         => new StackPanel()
             .Spacing(12)
             .Children(
-                new TextBlock()
-                    .Text("Everything below is drawn by ShapeEngine and shown as a plain image.")
-                    .TextWrapping(TextWrapping.Wrap)
-                    .Foreground(Brushes.DarkGray),
+                ExampleControls.Body("Everything below is drawn by ShapeEngine and shown as a plain image."),
                 BuildHero(),
-                new TextBlock().Text("One static view per shape, drawn once").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("One static view per shape, drawn once"),
                 BuildShapeRow(),
-                new TextBlock().Text("Animated view, redrawn continuously - toggle orbit paths on the Controls tab").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("Animated view, redrawn continuously - toggle orbit paths on the Controls tab"),
                 BuildAnimatedTile(),
-                new TextBlock().Text("Direct view - no texture, rotated").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("Direct view - no texture, rotated"),
                 BuildDirectTile(),
-                new TextBlock().Text("Random emblem - regenerate on click").FontSize(12).Foreground(Brushes.DarkGray),
+                ExampleControls.Label("Random emblem - regenerate on click"),
                 BuildEmblem(),
                 new Button()
+                    .Classes(ExamplesTheme.PrimaryButton)
                     .Content("Regenerate emblem")
                     .HorizontalAlignment(HorizontalAlignment.Stretch)
                     .HorizontalContentAlignment(HorizontalAlignment.Center)
@@ -514,7 +498,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
     private Control BuildHero()
         => new Border()
             .Height(120)
-            .CornerRadius(new CornerRadius(8))
             .ClipToBounds(true)
             .Child(
                 new ShapeEngineStaticTextureView { DrawContent = bounds => DrawIcon(bounds, gallerySeed, Accents[accentIndex].Color) }
@@ -532,8 +515,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
             tiles[i] = new Border()
                 .Width(48)
                 .Height(48)
-                .CornerRadius(new CornerRadius(6))
-                .Background(new SolidColorBrush(Color.FromArgb(140, 40, 40, 56)))
                 .Child(new ShapeEngineStaticTextureView { DrawContent = bounds => DrawIcon(bounds, shape, color) });
         }
 
@@ -543,7 +524,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
     private Control BuildAnimatedTile()
         => new Border()
             .Height(160)
-            .CornerRadius(new CornerRadius(8))
             .ClipToBounds(true)
             .Child(new ShapeEngineAnimatedTextureView { DrawContent = DrawAnimatedTile });
 
@@ -587,7 +567,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
     private Control BuildDirectTile()
         => new Border()
             .Height(90)
-            .CornerRadius(new CornerRadius(8))
             .ClipToBounds(true)
             .Child(
                 new ShapeEngineDirectView
@@ -617,7 +596,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
     private Control BuildEmblem()
         => new Border()
             .Height(110)
-            .CornerRadius(new CornerRadius(8))
             .ClipToBounds(true)
             .Child(new ShapeEngineStaticTextureView { DrawContent = DrawEmblem }.Ref(out emblemView));
 
@@ -666,21 +644,12 @@ public sealed class AvaloniaGalleryPanel : ViewBase
         => new StackPanel()
             .Spacing(12)
             .Children(
-                new TextBlock()
-                    .Text("Every animation below is advanced by the surface's render tick, not by an Avalonia render thread.")
-                    .TextWrapping(TextWrapping.Wrap)
-                    .Foreground(Brushes.DarkGray),
+                ExampleControls.Body("Every animation below is advanced by the surface's render tick, not by an Avalonia render thread."),
                 BuildTransformRow(),
-                new TextBlock()
-                    .Text("Keyframe animations: rotate, pulse, slide")
-                    .FontSize(12)
-                    .Foreground(Brushes.DarkGray),
+                ExampleControls.Label("Keyframe animations: rotate, pulse, slide"),
                 new ProgressBar()
                     .IsIndeterminate(true),
-                new TextBlock()
-                    .Text("Property transitions, triggered every 1.6s by the scene")
-                    .FontSize(12)
-                    .Foreground(Brushes.DarkGray),
+                ExampleControls.Label("Property transitions, triggered every 1.6s by the scene"),
                 BuildTransitionedBar(),
                 BuildPulsingPanel(),
                 BuildRotatingContent());
@@ -702,9 +671,7 @@ public sealed class AvaloniaGalleryPanel : ViewBase
         messageIndex = (messageIndex + 1) % RotatingMessages.Length;
         rotatingContent.Content = new TextBlock()
             .Text(RotatingMessages[messageIndex])
-            .FontSize(14)
-            .HorizontalAlignment(HorizontalAlignment.Center)
-            .Foreground(Brushes.White);
+            .HorizontalAlignment(HorizontalAlignment.Center);
     }
 
     private static Control BuildTransformRow()
@@ -760,7 +727,6 @@ public sealed class AvaloniaGalleryPanel : ViewBase
         => new Border()
             .Ref(out pulsingPanel)
             .Height(44)
-            .CornerRadius(new CornerRadius(8))
             .Opacity(0.35)
             .Background(new SolidColorBrush(Color.FromRgb(60, 60, 90)))
             .Transitions(
@@ -771,10 +737,9 @@ public sealed class AvaloniaGalleryPanel : ViewBase
             .Child(
                 new TextBlock()
                     .Text("Opacity and brush transitions")
-                    .FontSize(12)
+                    .Classes(ExamplesTheme.CaptionClass)
                     .HorizontalAlignment(HorizontalAlignment.Center)
-                    .VerticalAlignment(VerticalAlignment.Center)
-                    .Foreground(Brushes.White));
+                    .VerticalAlignment(VerticalAlignment.Center));
 
     private Control BuildRotatingContent()
         => new TransitioningContentControl()
@@ -786,9 +751,7 @@ public sealed class AvaloniaGalleryPanel : ViewBase
             .Content(
                 new TextBlock()
                     .Text(RotatingMessages[0])
-                    .FontSize(14)
-                    .HorizontalAlignment(HorizontalAlignment.Center)
-                    .Foreground(Brushes.White));
+                    .HorizontalAlignment(HorizontalAlignment.Center));
 
     /// <summary>Runs a looping keyframe animation between the given start and end values.</summary>
     /// <remarks>
