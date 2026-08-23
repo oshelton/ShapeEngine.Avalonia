@@ -39,17 +39,19 @@ public sealed class AvaloniaDirectionalNavPanel : ViewBase
     public AvaloniaDirectionalNavPanel()
     {
         Initialize();
-
-        // Focus has to start somewhere: the surface only forwards navigation keys once something inside
-        // is focused, and with no pointer involved nothing else would ever establish it. Fires on every
-        // show, because the scene swaps the content out when the view is hidden.
-        //
-        // Directional rather than the default: focus obtained without a navigation method gets :focus but
-        // not :focus-visible, which is the one the theme draws the focus ring from - so the starting button
-        // would hold focus while looking no different from the rest.
-        AttachedToVisualTree += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => buttons[0].Focus(NavigationMethod.Directional));
     }
+
+    /// <summary>Focuses the first button, so the view starts navigable with no pointer involved.</summary>
+    /// <remarks>
+    /// The surface only forwards navigation keys once something inside is focused, and nothing else here
+    /// would establish it. The scene calls this on every show: the content stays attached for the scene's
+    /// lifetime, so <c>AttachedToVisualTree</c> fires once and would leave later visits unfocused.
+    /// <para>
+    /// Directional rather than the default, because focus taken without a navigation method gets :focus
+    /// but not the :focus-visible the theme draws the focus ring from.
+    /// </para>
+    /// </remarks>
+    public void FocusDefault() => buttons[0].Focus(NavigationMethod.Directional);
 
     protected override object Build()
         => ExampleControls.Panel()

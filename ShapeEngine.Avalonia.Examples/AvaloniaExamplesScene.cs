@@ -394,7 +394,17 @@ public sealed class AvaloniaExamplesScene : Scene
         surface.GamepadNavigation = GamepadNavigationMode.Directional;
         surface.KeyboardDrivenNavigation = true;
 
-        return new ExampleView("Directional Nav", [surface], _ => panel.SetStatus(Status(surface)));
+        return new ExampleView(
+            "Directional Nav",
+            [surface],
+            _ => panel.SetStatus(Status(surface)),
+            // The panel's content stays attached for the scene's lifetime, so it cannot focus itself off
+            // attachment - without this, arriving by the sidebar would leave the grid unfocused and the
+            // keys the view is about doing nothing.
+            activate: showing =>
+            {
+                if (showing) panel.FocusDefault();
+            });
     }
 
     private void UpdateCircles(float dt, SeRect bounds)
