@@ -1,8 +1,18 @@
 # ShapeEngine.Avalonia
 
+[![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-8A63D2)](https://claude.com/claude-code)
+
 Avalonia UI integration for [ShapeEngine](https://github.com/DaveGreen-Games/ShapeEngine), a 2D game engine built on [raylib](https://www.raylib.com/). It hosts a real Avalonia `TopLevel` inside a ShapeEngine/raylib window and renders it with Skia directly onto the engine's OpenGL surface — no second window, no offscreen hand-off between renderers.
 
 This project uses a similar approach to [Estragonia](https://github.com/youfch/Estragonia)
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Layout](Screenshots/layout.png) DockPanel layout with native Avalonia controls | ![Gallery](Screenshots/gallery.png) ShapeEngine content used as controls, images, and animated views |
+| ![Shaders](Screenshots/shaders.png) Shader effects applied to Avalonia panels | ![Drag & Drop](Screenshots/drag-drop.png) Drag/drop between surfaces, rendered by ShapeEngine |
+| ![Directional Nav](Screenshots/nav.png) Directional (gamepad/arrow-key) focus navigation | |
 
 ## Features
 
@@ -13,6 +23,7 @@ This project uses a similar approach to [Estragonia](https://github.com/youfch/E
 - High performance GPU rendering of Avlaonia content with an OpenGL context from ShapeEngine/Raylib CS.
 - Easily apply shader effects to Avalonia controls.
 - Avalonia content can scale with the host window or maintain its relative size and positioning in the window as the window is resized.
+- Avalonia's thread is the game thread, so interacting is simple.
 
 ## Limitations
 
@@ -48,10 +59,19 @@ var surface = new AvaloniaSurface(
 ## Dependencies
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [ShapeEngine](https://www.nuget.org/packages/DaveGreen.ShapeEngine) (NuGet package `DaveGreen.ShapeEngine`)
+- [ShapeEngine](https://www.nuget.org/packages/DaveGreen.ShapeEngine) `5.3.0` (NuGet package `DaveGreen.ShapeEngine`)
 - [Avalonia](https://avaloniaui.net/) `12.1.1`, plus `Avalonia.Skia` and `Avalonia.HarfBuzz`
 
 Avalonia is pinned to an exact version rather than a range. Hosting Avalonia inside another renderer requires implementing its platform backend interfaces (`IPlatformRenderSurface` and friends), which Avalonia 12 only exposes through private APIs — opting in requires pinning the exact version those APIs were used from, so an Avalonia upgrade here is a deliberate, tested step rather than an automatic one.
+
+The `ShapeEngine.Avalonia.Examples` project additionally pulls in [ShadUI](https://github.com/accntech/shad-ui) to theme its UI, along with a few more `Avalonia.*` packages (`Themes.Simple`, `Controls.ColorPicker`, `Controls.DataGrid`, `Fonts.Inter`) — none of these are required to use the library itself.
+
+## NuGet?
+Not now, and maybe not ever.
+
+Integrating Avalonia like this inverts the natural expectations Avalonia has around input and focus.
+
+I have a strong suspicion that the way it is currently handled is not going to be the way it should work in all games and applications, so I'm leaving that door as open as I can.
 
 ## Building
 
