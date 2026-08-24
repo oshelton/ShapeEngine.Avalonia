@@ -104,6 +104,20 @@ ShapeEngine.Avalonia/            The library project
 ├── Gpu/                         OpenGL context/surface glue between raylib and Skia
 ├── Input/                       Input pump, keyboard mapping, drag/drop source
 └── Storage/                     File/folder picker implementation
+ShapeEngine.Avalonia.Examples/   The runnable showcase app
+├── Program.cs                   Entry point, creates the game window
+├── AvaloniaExamplesGame.cs      Game shell - single scene, window-level shortcuts
+├── AvaloniaExamplesScene.cs     Hosts all example views, switched between via the sidebar
+├── ExampleViews.cs              Builds each example view shown in the scene
+├── AvaloniaHost.cs              One-time Avalonia setup for the examples
+├── AvaloniaExamplesApp.cs       The hosted Avalonia Application
+├── ExamplesLayout.cs            Fixed window regions - nav sidebar and content band
+├── ExamplesTheme.cs             ShadUI style classes and resource keys used by the examples
+├── ExampleControls.cs           Shared controls every example view is built from
+├── ExamplesFocusRing.cs         Animated focus ring drawn by ShapeEngine over the focused control
+├── ExamplesFpsDisplay.cs        FPS readout drawn by ShapeEngine in the sidebar
+├── Views/                       One panel per example (layout, gallery, shaders, drag/drop, nav)
+└── Shaders/                     Shader implementations used by the Shaders example
 ```
 
 ## License
