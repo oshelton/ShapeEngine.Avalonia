@@ -5,8 +5,11 @@ using Avalonia.Media;
 using Avalonia.OpenGL;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
+using Avalonia.Threading;
 using Raylib_cs;
 using ShapeEngine.Avalonia.Gpu;
+using ShapeEngine.Core.GameDef;
+using ShapeEngine.Core.Structs;
 using SeRect = ShapeEngine.Geometry.RectDef.Rect;
 using SkMatrix = SkiaSharp.SKMatrix;
 using SkRect = SkiaSharp.SKRectI;
@@ -37,6 +40,10 @@ namespace ShapeEngine.Avalonia.Controls;
 /// </example>
 public sealed class ShapeEngineDirectView : Control
 {
+    private readonly FramePump pump;
+
+    public ShapeEngineDirectView() => pump = new FramePump(this);
+
     /// <summary>
     /// Draws the content, in the control's own coordinate space. Called during Avalonia's render pass,
     /// so ShapeEngine's drawing functions can be used directly.
@@ -47,12 +54,62 @@ public sealed class ShapeEngineDirectView : Control
     /// </remarks>
     public Action<SeRect>? DrawContent { get; set; }
 
+    /// <summary>
+    /// Whether the view redraws itself every frame, so live content keeps animating. On by default, so
+    /// direct content animates with no setup - the view reports itself dirty each frame, which is what tells
+    /// the host <see cref="AvaloniaSurface"/> to keep drawing it.
+    /// </summary>
+    /// <remarks>
+    /// Turn it off for content that only changes occasionally and call <see cref="InvalidateContent"/> when
+    /// it does; the host surface then rests between changes instead of rasterizing this view every frame.
+    /// </remarks>
+    public bool RedrawContinuously { get; set; } = true;
+
+    /// <summary>Marks the content out of date, so it is drawn again on the next frame.</summary>
+    /// <remarks>Needed only with <see cref="RedrawContinuously"/> off; posted, so it is safe to call from
+    /// anywhere.</remarks>
+    public void InvalidateContent() => Dispatcher.UIThread.Post(InvalidateVisual);
+
     public override void Render(DrawingContext context)
     {
         if (DrawContent is not { } drawContent) return;
         if (Bounds.Width <= 0.0 || Bounds.Height <= 0.0) return;
 
         context.Custom(new DrawOperation(new Rect(Bounds.Size), drawContent));
+    }
+
+    /// <remarks>
+    /// Posted rather than called directly: attach can run from inside the engine's own iteration over its
+    /// custom events, and registering synchronously there would mutate that set mid-enumeration.
+    /// </remarks>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Dispatcher.UIThread.Post(() => Game.Instance.AddCustomEvent(pump));
+    }
+
+    /// <remarks>See <see cref="OnAttachedToVisualTree"/> for why this is posted rather than immediate.</remarks>
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() => Game.Instance.RemoveCustomEvent(pump));
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    /// <summary>Invalidates the view once per frame so live content keeps reporting itself dirty.</summary>
+    /// <remarks>
+    /// Only marks dirty - unlike <see cref="ShapeEngineTextureView"/> the view draws directly in
+    /// <see cref="Render"/>, so there is nothing to render here. <c>PreDrawUi</c> runs once per frame.
+    /// </remarks>
+    private sealed class FramePump : Game.CustomEvent
+    {
+        private readonly ShapeEngineDirectView view;
+
+        public FramePump(ShapeEngineDirectView view) => this.view = view;
+
+        protected override void PreDrawUi(ScreenInfo info)
+        {
+            if (view.RedrawContinuously) view.InvalidateVisual();
+        }
     }
 
     /// <summary>Hands the OpenGL context to raylib for the duration of Avalonia's render pass.</summary>

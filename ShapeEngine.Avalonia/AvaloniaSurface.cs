@@ -28,6 +28,13 @@ namespace ShapeEngine.Avalonia;
 /// <see cref="ScreenTexture.Shaders"/> post-process the interface. Screen textures composite before the
 /// game's <c>DrawUI</c>, so anything the game draws there covers it.
 /// </para>
+/// <para>
+/// Rendering is on demand: a surface rasterizes only when its content reports itself dirty, so a static
+/// overlay skips the Skia pass that dominates its cost. Avalonia's own controls report their dirtiness
+/// through the visual tree; content that draws outside Avalonia must report its own, the way the
+/// <c>ShapeEngine*View</c> controls do, or it will not be redrawn. Force a frame with
+/// <see cref="RequestRender"/> for anything that changes without going through the visual tree.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -60,6 +67,13 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     private bool hasLockedKeyboard;
     private bool wantsExclusiveKeyboard;
     private bool isDisposed;
+
+    /// <summary>
+    /// Forces one explicit paint on the next frame, over and above what the render loop draws on its own.
+    /// Starts true so the first frame always paints; also set on a content swap, a resize, becoming visible
+    /// again, or <see cref="RequestRender"/>.
+    /// </summary>
+    private bool needsRender = true;
 
     /// <summary>Creates a surface and the screen texture it renders through.</summary>
     /// <param name="content">The Avalonia control tree to display.</param>
@@ -262,6 +276,17 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// </remarks>
     public bool KeyboardDrivenNavigation { get; set; }
 
+    /// <summary>Forces the interface to rasterize again on the next frame.</summary>
+    /// <remarks>
+    /// The surface renders on demand: it rasterizes only when its content reports itself dirty, so a static
+    /// overlay skips the Skia pass that is the bulk of its cost. Anything that reports its dirtiness through
+    /// the visual tree - layout, properties, input, Avalonia's animations - is drawn automatically, per
+    /// surface. Content that draws outside Avalonia's knowledge must report its own dirtiness: the
+    /// <c>ShapeEngine*View</c> controls do (see <see cref="Controls.ShapeEngineDirectView"/>), and anything
+    /// else that changes without going through the visual tree has to call this to be redrawn.
+    /// </remarks>
+    public void RequestRender() => needsRender = true;
+
     #region Showing and hiding
 
     /// <summary>Puts the surface back on the game, resizing it first if the window changed while it was
@@ -292,6 +317,10 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
         // Before the texture goes back on the game, so the frame it rejoins is already the right size.
         placement.Update(0f, Game.Instance.Window.CurScreenSize, Raylib.GetMousePosition(), Game.Instance.Paused);
         SyncSize();
+
+        // Force the first frame back: a resize while hidden recreates a blank surface, and nothing in a
+        // static tree would otherwise ask for it.
+        needsRender = true;
 
         Game.Instance.AddScreenTexture(placement);
     }
@@ -384,16 +413,27 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
 
     /// <summary>Advances Avalonia by one frame and rasterizes it into the surface framebuffer.</summary>
     /// <remarks>
-    /// The order matters: draining the jobs the tick queues before painting keeps layout and animation
-    /// changes in this frame rather than the next.
+    /// The pump, tick and job drain commit pending changes and let Avalonia's render loop draw them, which
+    /// it does per surface only when that surface's target is dirty - so a static surface does no Skia work
+    /// here. The explicit paint is forced only when <see cref="needsRender"/> is set, for transitions the
+    /// loop cannot see on its own (first frame, content swap, resize, becoming visible,
+    /// <see cref="RequestRender"/>).
     /// </remarks>
     private void RenderAvalonia()
     {
+        // Drive the pipeline every frame so animations keep advancing - this commits and pulses the clock
+        // but forces no rasterization; the render loop rasterizes each surface only when its target is dirty.
+        ShapeEnginePlatform.RequestCompositionCommit();
+
         ShapeEnginePlatform.PumpDispatcher();
         ShapeEnginePlatform.TriggerRenderTick(renderClock.Elapsed);
         Dispatcher.UIThread.RunJobs();
 
-        impl.OnDraw(new Rect(impl.ClientSize));
+        if (needsRender)
+        {
+            needsRender = false;
+            impl.OnDraw(new Rect(impl.ClientSize));
+        }
     }
 
     /// <summary>Draws the rendered UI into the currently bound render target.</summary>
@@ -420,6 +460,9 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// <summary>Puts the content into the top level, wrapped for scaling when asked for.</summary>
     private void ApplyContent()
     {
+        // New content lays out and paints from scratch, so force it to be drawn at least once.
+        needsRender = true;
+
         if (scaleBox is null)
         {
             TopLevel.Content = content;
@@ -442,7 +485,12 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
         var scaling = Raylib.GetWindowScaleDPI().X;
         if (scaling <= 0f || Single.IsNaN(scaling)) scaling = 1f;
 
+        var previousClientSize = impl.ClientSize;
         impl.SetRenderSize(size, scaling);
+
+        // A pixel-size change recreates the surface with a blank texture, so force a repaint rather than
+        // rely on the resize's layout pass to mark it dirty.
+        if (impl.ClientSize != previousClientSize) needsRender = true;
     }
 
     /// <summary>The cursor position in Avalonia's client coordinate space.</summary>

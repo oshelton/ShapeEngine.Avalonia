@@ -96,8 +96,6 @@ public sealed class ExamplesFpsDisplay
         var reference = ui.Area.Size.Min();
         text.FontSize = reference * FontSizeFraction;
 
-        var label = $"{fps} FPS";
-
         // Sat at the foot of the navigation sidebar's column rather than in a corner of the window, so it
         // reads as part of the same chrome as the nav items above it. Drawn over the sidebar rather than
         // placed in its footer slot, which is what keeps it independent of Avalonia - see the remarks on
@@ -109,7 +107,7 @@ public sealed class ExamplesFpsDisplay
             ui.Area.Height * ExamplesLayout.ContentHeight);
 
         text.DrawWord(
-            label,
+            $"{fps} FPS",
             new Vector2(sidebar.Center.X, sidebar.Bottom - reference * MarginFraction),
             AnchorPoint.BottomCenter);
     }

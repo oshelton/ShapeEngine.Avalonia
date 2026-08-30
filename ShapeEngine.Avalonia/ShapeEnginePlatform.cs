@@ -73,4 +73,14 @@ internal static class ShapeEnginePlatform
 
     /// <summary>Drives one Avalonia render pass. Call once per frame.</summary>
     public static void TriggerRenderTick(TimeSpan elapsed) => renderTimer?.TriggerTick(elapsed);
+
+    /// <summary>
+    /// Asks the compositor to commit a frame, advancing the animation clock and flushing pending changes.
+    /// </summary>
+    /// <remarks>
+    /// Cheap when nothing changed - an empty batch, no rasterization. Surfaces call it every frame so
+    /// animations and transitions keep advancing; the render loop still rasterizes a surface only when its
+    /// own composition target is dirty.
+    /// </remarks>
+    public static void RequestCompositionCommit() => compositor?.RequestCommitAsync();
 }
