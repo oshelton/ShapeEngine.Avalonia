@@ -62,6 +62,7 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     private readonly Stopwatch renderClock = Stopwatch.StartNew();
 
     private AvControl? content;
+    private float? contentScalingOverride;
     private MouseCursor currentCursor = MouseCursor.Default;
     private bool hasLockedMouse;
     private bool hasLockedKeyboard;
@@ -89,6 +90,10 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// other than <see cref="ShaderSupportType.None"/> costs a second render texture of the surface's
     /// size, so a surface that will never carry a shader is worth declaring as such.
     /// </param>
+    /// <param name="contentScalingOverride">
+    /// Initial value for <see cref="ContentScalingOverride"/>. Leave <c>null</c> to lay out at the
+    /// automatically computed scale.
+    /// </param>
     /// <exception cref="InvalidOperationException">
     /// Avalonia has not been configured with <see cref="AppBuilderExtensions.UseShapeEngine"/>.
     /// </exception>
@@ -97,7 +102,8 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
         AvaloniaSurfaceAnchor? anchor = null,
         bool scaleContent = false,
         int order = 0,
-        ShaderSupportType shaderSupport = ShaderSupportType.Multi)
+        ShaderSupportType shaderSupport = ShaderSupportType.Multi,
+        float? contentScalingOverride = null)
         : base(order)
     {
         if (!ShapeEnginePlatform.IsInitialized)
@@ -105,6 +111,9 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
             throw new InvalidOperationException(
                 $"Avalonia isn't set up yet. Call AppBuilder.Configure<...>().{nameof(AppBuilderExtensions.UseShapeEngine)}().SetupWithoutStarting() before creating an AvaloniaSurface.");
         }
+
+        // Before the first SyncSize below, so the surface lays out at the override from its very first frame.
+        this.contentScalingOverride = contentScalingOverride;
 
         var placementAnchor = anchor ?? AvaloniaSurfaceAnchor.FullScreen;
 
@@ -175,6 +184,32 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
     /// </para>
     /// </remarks>
     public bool ScaleContent { get; }
+
+    /// <summary>
+    /// An explicit layout scale to use instead of the automatically computed one, or <c>null</c> (the
+    /// default) to let the surface compute it.
+    /// </summary>
+    /// <remarks>
+    /// The computed scale is the monitor's real desktop DPI scale, held steady across window modes (see
+    /// <see cref="ContentScaling"/>). Setting a value here overrides it outright: the value is fed to Avalonia
+    /// as-is, so the surface no longer tracks the display scale nor holds its size when exclusive fullscreen
+    /// reports a scale of 1 - an escape hatch for content that wants a fixed layout scale and will manage the
+    /// consequences itself. Non-positive or <see cref="Single.NaN"/> values are ignored and the computed
+    /// scale is used.
+    /// </remarks>
+    public float? ContentScalingOverride
+    {
+        get => contentScalingOverride;
+        set
+        {
+            if (Nullable.Equals(contentScalingOverride, value)) return;
+
+            contentScalingOverride = value;
+
+            // Take effect now rather than waiting on the next input pass, and only touch a live surface.
+            if (!isDisposed) SyncSize();
+        }
+    }
 
     /// <summary>
     /// The screen texture this surface renders through, for attaching shaders or changing the draw order.
@@ -473,17 +508,25 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
         TopLevel.Content = scaleBox;
     }
 
+    /// <summary>The desktop DPI scale last seen outside exclusive fullscreen, so <see cref="ContentScaling"/>
+    /// can recover it once fullscreen collapses the reported scale to 1.</summary>
+    /// <remarks>Shared across surfaces: the DPI scale is a property of the window, not of any one surface.</remarks>
+    private static float lastWindowedDpiScale = 1f;
+
     /// <summary>Matches the surface framebuffer to the placement texture.</summary>
     /// <remarks>
-    /// The texture is sized in physical pixels, so the DPI scale is what leaves Avalonia laying out in
-    /// device independent pixels while rasterizing at full resolution.
+    /// The texture is sized to the placement, and <see cref="ContentScaling"/> is the DPI scale Avalonia
+    /// lays out and rasterizes at - the real desktop scale, held steady across window modes so content keeps
+    /// its physical size when exclusive fullscreen would otherwise report a scale of 1.
     /// </remarks>
     private void SyncSize()
     {
         var size = new PixelSize(Math.Max(placement.Width, 1), Math.Max(placement.Height, 1));
 
-        var scaling = Raylib.GetWindowScaleDPI().X;
-        if (scaling <= 0f || Single.IsNaN(scaling)) scaling = 1f;
+        // Always compute the automatic scale - it keeps the shared desktop-scale cache warm - then let a
+        // valid override stand in for it.
+        var scaling = ContentScaling();
+        if (contentScalingOverride is { } o && o > 0f && !Single.IsNaN(o)) scaling = o;
 
         var previousClientSize = impl.ClientSize;
         impl.SetRenderSize(size, scaling);
@@ -491,6 +534,28 @@ public sealed class AvaloniaSurface : Game.CustomEvent, IDisposable
         // A pixel-size change recreates the surface with a blank texture, so force a repaint rather than
         // rely on the resize's layout pass to mark it dirty.
         if (impl.ClientSize != previousClientSize) needsRender = true;
+    }
+
+    /// <summary>The DPI scale to lay Avalonia out at: the monitor's real desktop scale, in every window
+    /// mode.</summary>
+    /// <remarks>
+    /// HighDPI content rasterizes at the DPI scale so it lands at the right physical size, and that size
+    /// should not change with the window mode. <see cref="Raylib.GetWindowScaleDPI"/> reports the real scale
+    /// windowed and borderless, but exclusive fullscreen switches raylib to the monitor's native mode and
+    /// then reports a scale of 1 - even though the monitor's real scale is unchanged - which is what shrank
+    /// content in fullscreen. Caching the scale while not in exclusive fullscreen and reusing it there holds
+    /// content the same size across every mode. On a display with no scaling the cached value is 1, so
+    /// nothing changes.
+    /// </remarks>
+    private static float ContentScaling()
+    {
+        var scaling = Raylib.GetWindowScaleDPI().X;
+        if (scaling <= 0f || Single.IsNaN(scaling)) scaling = 1f;
+
+        // Only windowed and borderless report the true desktop scale; exclusive fullscreen reports 1.
+        if (!Game.Instance.Window.IsWindowFullscreen()) lastWindowedDpiScale = scaling;
+
+        return lastWindowedDpiScale;
     }
 
     /// <summary>The cursor position in Avalonia's client coordinate space.</summary>

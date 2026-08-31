@@ -51,20 +51,22 @@ public sealed class AvaloniaExamplesGame(
     /// Avalonia surfaces rather than under them.</remarks>
     protected override void DrawUI(ScreenInfo uiInfo) => fpsDisplay.Draw(uiInfo);
 
-    /// <summary>Swaps between a normal window and a borderless fullscreen one.</summary>
+    /// <summary>Swaps between a normal window and an exclusive fullscreen one.</summary>
     /// <remarks>
-    /// Spelled out as two calls rather than <c>Window.ToggleBorderlessFullscreen</c> so the windowed half
-    /// of the toggle is always the normal state: <see cref="GameWindow.RestoreWindow"/> also drops a
-    /// maximized window back to its normal size, which a plain toggle would leave maximized.
+    /// Spelled out as two calls rather than <c>Window.ToggleFullscreen</c> so the windowed half of the
+    /// toggle is always the normal state: <see cref="GameWindow.RestoreWindow"/> also drops a maximized
+    /// window back to its normal size, which a plain toggle would leave maximized.
     /// <para>
-    /// Borderless is unaffected by the <c>FullscreenAutoRestoring</c> the examples set - that only governs
-    /// exclusive fullscreen - so the window stays fullscreen when focus moves elsewhere.
+    /// Exclusive fullscreen rather than borderless so the <c>FullscreenAutoRestoring</c> the examples set
+    /// takes effect: it only governs exclusive fullscreen, and restores the window whenever focus moves
+    /// elsewhere - so pressing the Windows key surfaces the shell instead of leaving a full-monitor window
+    /// painted over it. It re-enters fullscreen on refocus.
     /// </para>
     /// </remarks>
     private void ToggleWindowMode()
     {
-        if (Window.IsWindowBorderlessFullscreen()) Window.RestoreWindow();
-        else Window.ActivateBorderlessFullscreen();
+        if (Window.IsWindowFullscreen()) Window.RestoreWindow();
+        else Window.ActivateFullscreen();
     }
 
     /// <remarks>
