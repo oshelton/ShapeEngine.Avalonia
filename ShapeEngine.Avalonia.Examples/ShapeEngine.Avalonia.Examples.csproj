@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DaveGreen.ShapeEngine" Version="5.3.0" />
+    <PackageReference Include="DaveGreen.ShapeEngine" Version="5.4.0" />
     <PackageReference Include="Avalonia.Markup.Declarative" Version="12.1.0" />
     <!-- The example UI is themed entirely by ShadUI - https://github.com/accntech/shad-ui - which
          restyles the stock Avalonia controls and brings its own SimpleTheme base, so no Fluent theme is
